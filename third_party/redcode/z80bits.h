@@ -75,4 +75,4 @@ typedef union {
 
 #include "Z/Z80.h"
 
-#endif _TIHLE_Z80BITS_H_
+#endif // _TIHLE_Z80BITS_H_

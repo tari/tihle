@@ -144,13 +144,14 @@ Z_DEFINE_STRICT_STRUCTURE_BEGIN
 
 	zuint16 memptr;
 
-	struct {zuint8 halt :1;
-		zuint8 irq  :1;
-		zuint8 nmi  :1;
-		zuint8 iff1 :1;
-		zuint8 iff2 :1;
-		zuint8 ei   :1;
-		zuint8 im   :2;
+	struct {
+		zuint8 halt;
+		zuint8 irq;
+		zuint8 nmi;
+		zuint8 iff1;
+		zuint8 iff2;
+		zuint8 ei;
+		zuint8 im;
 	} internal;
 Z_DEFINE_STRICT_STRUCTURE_END ZZ80State;
 

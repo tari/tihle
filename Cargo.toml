@@ -1,0 +1,25 @@
+[package]
+name = "tihle"
+version = "0.1.0"
+authors = ["Peter Marheine <peter@taricorp.net>"]
+edition = "2018"
+license = "GPL-3.0-only"
+
+build = "build.rs"
+
+[[bin]]
+name = "tihle"
+required-features = ["sdl"]
+
+[features]
+default = ["sdl"]
+sdl = ["sdl2"]
+
+[dependencies]
+num-derive = "0.3"
+num-traits = "0.2"
+log = "0.4.8"
+sdl2 = { version = "0.34", optional = true }
+
+[build-dependencies]
+cc = "1.0"
