@@ -1,14 +1,16 @@
-use sdl2::render::{Canvas, RenderTarget};
 
-pub struct Display<T>
-where
-    T: RenderTarget,
-{
-    canvas: Canvas<T>,
+pub struct Display {
+    buf: [[u8; 12]; 8],
 }
 
-impl<T: RenderTarget> Display<T> {
-    pub fn new(canvas: Canvas<T>) -> Self {
-        Display { canvas }
+impl Display {
+    pub fn new() -> Self {
+        Display {
+            buf: [[0; 12]; 8]
+        }
+    }
+
+    fn clear(&mut self) {
+        unimplemented!()
     }
 }

@@ -14,17 +14,22 @@ impl Memory {
     #[inline]
     pub fn read_u16(&mut self, addr: u16) -> u16 {
         if !RAM_ADDRS.contains(&addr) {
-            warn!("Attempted to read non-RAM memory at {:#06x}", addr);
+            error!("Attempted to read non-RAM memory at {:#06x}", addr);
             return 0;
         }
 
-        let base = (addr - RAM_ADDRS.start()) as usize;
-        self.ram[base] as u16 | ((self.ram[base + 1] as u16) << 8)
+        (self[addr] as u16) | ((self[addr + 1] as u16) << 8)
     }
 
     #[inline]
     pub fn write_u16(&mut self, addr: u16, value: u16) {
-        unimplemented!();
+        if !RAM_ADDRS.contains(&addr) {
+            error!("Attempted to write non-RAM memory at {:#06x}", addr);
+            return;
+        }
+
+        self[addr] = value as u8;
+        self[addr + 1] = (value >> 8) as u8;
     }
 }
 

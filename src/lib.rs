@@ -5,31 +5,9 @@ extern crate log;
 extern crate num_derive;
 
 use std::cell::Cell;
-use std::collections::HashMap;
-use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 /*
-
-Setup:
- * Generate dummy memory map; stack, VAT..?
- * Reset CPU
- * Set IM 1
-
-Loading programs requires checking the type bytes, only support tasmCmp for now.
-
-# Traps
-
-Reading from an address that is defined as a trap returns an instruction
-sequence appropriate to the trap, and on the final instruction the trap
-executes over the CPU state.
-
-In most cases simply "ret" is the appropriate return sequence for a trap,
-but some may want a different sequence. Interrupt vectors for instance
-probably want "reti".
-
-Each trap consumes an arbitrary number of cycles, to simulate the time it
-takes to execute on hardware. In particular LCD copy traps are very slow.
 
 Obviously required traps:
  * 0028: bcall entry point
@@ -48,84 +26,54 @@ Ports that we probably need good fidelity for:
  * Keypad ports
  * LCD ports
 
-Questions:
- * How often does the calculator fire interrupts? We need to do that
-   ourselves.
-
 */
 
 mod bcalls;
 mod checksum;
-pub mod display;
+mod display;
 mod interrupt;
 mod memory;
-pub mod tifiles;
-pub mod z80;
+mod tifiles;
+mod z80;
 
 pub use interrupt::InterruptController;
 pub use memory::Memory;
-use std::borrow::BorrowMut;
+use std::ops::RangeInclusive;
 pub use z80::Z80;
 
-type Trap = dyn FnMut(&mut Emulator) -> (u8, usize);
-
 pub struct Emulator {
-    cpu: Z80,
     clock_rate: u32,
     pub mem: Memory,
     pub interrupt_controller: InterruptController,
-    traps: HashMap<u16, Box<Trap>>,
+    pub display: display::Display,
 
-    events: sdl2::EventPump,
     target_framerate: u32,
-    display: display::Display<sdl2::video::Window>,
     /// If true, emulation has terminated.
-    terminate: Rc<Cell<bool>>,
+    terminate: Cell<bool>,
 }
 
 impl Emulator {
     pub fn new() -> Self {
-        let sdl_context = sdl2::init().unwrap();
-        let video = sdl_context.video().unwrap();
-
-        let canvas = video
-            .window("tihle", 96, 64)
-            .build()
-            .unwrap()
-            .into_canvas()
-            .build()
-            .unwrap();
-
-        let terminate_flag = Rc::new(Cell::new(false));
-
-        // TODO use a halt handler to sleep and whatever
-        let mut cpu = Z80::new();
-        let mut mem = Memory::new();
-        let mut traps = HashMap::new();
-        /*
-        let reset_terminate = terminate_flag.clone();
-        cpu.add_trap(0x0000, move |_core: z80::CoreState| {
-            reset_terminate.set(true);
-            // Arbitrarily long amount of time to make the core yield, not
-            // trusting it to work correctly with usize::MAX.
-            clock_rate as usize
-        });
-        cpu.add_trap(0x0028, bcalls::bcall_trap);
-         */
-
         Emulator {
-            cpu,
             clock_rate: 6_000_000,
-            mem,
-            traps,
+            mem: Memory::new(),
             interrupt_controller: InterruptController::new(),
+            display: display::Display::new(),
 
-            events: sdl_context.event_pump().unwrap(),
             target_framerate: 60,
-            display: display::Display::new(canvas),
-            terminate: terminate_flag.clone(),
+            terminate: Cell::new(false),
         }
     }
+
+    pub fn reset(&mut self) {
+        *self = Self::new();
+    }
+
+    /// Cycle count to force the core to stop executing.
+    ///
+    /// This is an arbitrarily large number of cycles, but not so large that
+    ///
+    const FORCE_YIELD: usize = usize::MAX / 2;
 
     fn duration_to_cycles(&self, duration: Duration) -> usize {
         let cycle_secs = 1.0 / self.clock_rate as f64;
@@ -133,70 +81,66 @@ impl Emulator {
         (duration.as_secs_f64() / cycle_secs) as usize
     }
 
-    pub fn run(&mut self, cpu: &mut Z80) {
+    pub fn run(&mut self, cpu: &mut Z80, frame_start: &Instant) {
         let frame_duration = Duration::from_nanos(1e9 as u64 / self.target_framerate as u64);
 
-        loop {
-            let frame_start = Instant::now();
+        if self.terminate.get() {
+            debug!("CPU terminated, sleeping for a frame");
+            std::thread::sleep(frame_duration);
+            return;
+        }
 
-            // Process events
-            for event in self.events.poll_iter() {
-                use sdl2::event::Event;
+        let (irq_pending, until_next_interrupt) = self.interrupt_controller.poll();
+        trace!(
+            "IRQ pending: {}; next interrupt: {:?}",
+            irq_pending,
+            until_next_interrupt
+        );
+        cpu.set_irq(irq_pending);
 
-                if let Event::KeyDown {
-                    keycode: Some(k), ..
-                } = event
-                {
-                    println!("key down: {}", k);
-                }
-            }
+        // Run the CPU for a frame or until the next interrupt,
+        // whichever is sooner.
+        // TODO: this won't handle enabling interrupts while running;
+        // the core needs to be able to break based on requests from
+        // callbacks to do this accurately. Seems like it needs a few
+        // extra hooks, like one for fetching instructions mostly that
+        // can say "pretend this took a while" or "stop running so the
+        // caller can do some work for us."
+        let step_duration = match until_next_interrupt {
+            None => frame_duration,
+            Some(t) => std::cmp::min(frame_duration, t),
+        };
 
-            if self.interrupt_controller.is_pending() {
-                self.cpu.set_irq(true);
-            }
+        if cpu.is_halted() || self.terminate.get() {
+            trace!("CPU halted, sleep {:?}", step_duration);
+            std::thread::sleep(step_duration);
+        } else {
+            trace!(
+                "Run CPU for {:?} ({} cycles)",
+                step_duration,
+                self.duration_to_cycles(step_duration)
+            );
+            cpu.run(self.duration_to_cycles(step_duration), self);
 
-            let (irq_pending, until_next_interrupt) = self.interrupt_controller.poll();
-            cpu.set_irq(irq_pending);
-
-            // Run the CPU for a frame or until the next interrupt,
-            // whichever is sooner.
-            // TODO: this won't handle enabling interrupts while running;
-            // the core needs to be able to break based on requests from
-            // callbacks to do this accurately. Seems like it needs a few
-            // extra hooks, like one for fetching instructions mostly that
-            // can say "pretend this took a while" or "stop running so the
-            // caller can do some work for us."
-            let step_duration = match until_next_interrupt {
-                None => frame_duration,
-                Some(t) => std::cmp::min(frame_duration, t),
-            };
-
-            if cpu.is_halted() {
-                std::thread::sleep(step_duration);
+            // The CPU ran, and probably ran faster than real time; wait until
+            // wall time catches up.
+            let step_elapsed = frame_start.elapsed();
+            if let Some(t) = step_duration.checked_sub(step_elapsed) {
+                trace!("CPU {:?} ahead; sleeping to catch up", t);
+                std::thread::sleep(t);
             } else {
-                cpu.run(self.duration_to_cycles(step_duration), self);
-                if self.terminate.get() {
-                    break;
-                }
-
-                // The CPU ran, and probably ran faster than real time; wait until
-                // wall time catches up.
-                let step_elapsed = frame_start.elapsed();
-                if let Some(t) = step_duration.checked_sub(step_elapsed) {
-                    std::thread::sleep(t);
-                } else {
-                    warn!("Running slowly: emulating {}ms took {}ms on the wall",
-                          step_duration.as_millis(),
-                          step_elapsed.as_millis());
-                }
+                warn!(
+                    "Running slowly: emulating {}ms took {}ms on the wall",
+                    step_duration.as_millis(),
+                    step_elapsed.as_millis()
+                );
             }
-
-
         }
     }
 
     pub fn load_program<R: std::io::Read>(
         &mut self,
+        cpu: &mut Z80,
         r: R,
     ) -> Result<tifiles::Variable, LoadProgramError> {
         use tifiles::{File, VariableType};
@@ -217,11 +161,12 @@ impl Emulator {
             return Err(LoadProgramError::InvalidSignature);
         }
 
-        let regs = self.cpu.regs();
+        let regs = cpu.regs();
 
         let code_size = internal_len - 2;
         let load_addr = 0x9d95u16; // userMem
 
+        debug!("Loading {} byte(s) of code to {:04X}", code_size, load_addr);
         self.mem[load_addr..load_addr + code_size].copy_from_slice(&var.data[4..]);
 
         // Set up stack to return to the reset vector at exit.
@@ -231,18 +176,67 @@ impl Emulator {
         // Begin executing at load address
         regs.pc = load_addr as u16;
 
+        // Enable interrupts in mode 1
+        regs.set_interrupt_enable(true);
+        regs.set_im(1);
+
         Ok(var)
     }
 
+    const RAM_ADDRS: RangeInclusive<u16> = 0x8000..=0xFFFF;
+
+    #[inline]
     fn read_memory(&mut self, core: &mut Z80, addr: u16) -> u8 {
-        unimplemented!()
+        trace!("Memory read from {:04X}", addr);
+        if Self::RAM_ADDRS.contains(&addr) {
+            return self.mem[addr];
+        }
+
+        let mut elapsed: usize = 0;
+        let read_byte: u8 = match addr {
+            0x0000 => {
+                info!("Trapped reset; terminating CPU.");
+                self.terminate.set(true);
+                elapsed = Self::FORCE_YIELD;
+                0xc7 // rst 00h; infinite loop
+            }
+
+            0x0028 => {
+                elapsed = bcalls::bcall_trap(self, core);
+                0xc9 // return normally after trap
+            }
+
+            0x0038 => {
+                0xed // reti byte 1
+            }
+            0x0039 => {
+                0x4d // reti byte 2
+            }
+
+            _ => {
+                error!(
+                    "Unhandled memory read from {:#06x}! {:#?}",
+                    addr,
+                    core.regs()
+                );
+                0xc9 // ret (try to limp along)
+            }
+        };
+
+        core.z80.cycles += elapsed;
+        read_byte
     }
 
-    fn write_memory(&mut self, core: &mut Z80, addr: u16, value: u8) {
-        unimplemented!()
+    #[inline]
+    fn write_memory(&mut self, _core: &mut Z80, addr: u16, value: u8) {
+        if Self::RAM_ADDRS.contains(&addr) {
+            self.mem[addr] = value;
+        } else {
+            warn!("Unhandled memory write to {:#06x}", addr);
+        }
     }
 
-    fn wait_for_interrupt(&mut self, core: &mut Z80) {
+    fn wait_for_interrupt(&mut self, _core: &mut Z80) {
         unimplemented!()
     }
 }

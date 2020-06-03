@@ -9,5 +9,10 @@ pub fn bcall_trap(emu: &mut Emulator, core: &mut Z80) -> usize {
     emu.mem.write_u16(sp, ret_addr + 2);
 
     debug!("Trapping bcall {:04x}", bcall_addr);
-    unimplemented!()
+    match bcall_addr {
+        _ => {
+            warn!("Unhandled bcall: {:04x}", bcall_addr);
+            0
+        }
+    }
 }

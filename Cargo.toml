@@ -11,15 +11,19 @@ build = "build.rs"
 name = "tihle"
 required-features = ["sdl"]
 
+[profile.release]
+lto = true
+
 [features]
 default = ["sdl"]
 sdl = ["sdl2"]
 
 [dependencies]
+log = "0.4.8"
 num-derive = "0.3"
 num-traits = "0.2"
-log = "0.4.8"
 sdl2 = { version = "0.34", optional = true }
+simple_logger = "1.6"
 
 [build-dependencies]
 cc = "1.0"

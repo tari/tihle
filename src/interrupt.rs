@@ -44,18 +44,6 @@ pub struct InterruptController {
     on_pending: bool,
 }
 
-/// Returned from poll(), indicating when the next interrupt is expected.
-pub enum NextInterrupt {
-    /// No interrupts are expected.
-    None,
-    /// There are interrupts pending. The application should set the IRQ input
-    /// to the CPU so it services the interrupt.
-    Immediate,
-    /// A timer interrupt will fire the given duration in the future.
-    /// The application should
-    Timer(Duration),
-}
-
 impl InterruptController {
     pub fn new() -> Self {
         InterruptController {
@@ -95,7 +83,13 @@ impl InterruptController {
 
         let pending = self.timer1_pending || self.on_pending;
         let next = if self.timer1_enabled {
-            self.timer1_period.checked_sub(since_last_timer)
+            // last + period if it's not in the past, otherwise now + period
+            // as a lower bound for the next one.
+            Some(
+                self.timer1_period
+                    .checked_sub(since_last_timer)
+                    .unwrap_or(self.timer1_period),
+            )
         } else {
             None
         };
