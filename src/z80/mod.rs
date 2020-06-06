@@ -92,8 +92,12 @@ impl Z80 {
         unsafe { ffi::z80_run(&mut self.z80 as *mut _, cycles) }
     }
 
-    pub fn regs(&mut self) -> &mut ffi::State {
+    pub fn regs_mut(&mut self) -> &mut ffi::State {
         &mut self.z80.regs
+    }
+
+    pub fn regs(&self) -> &ffi::State {
+        &self.z80.regs
     }
 
     pub fn set_irq(&mut self, pending: bool) {

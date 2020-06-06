@@ -48,6 +48,10 @@ impl State {
         assert!((0..=2).contains(&mode));
         self.internal.im = mode;
     }
+
+    pub fn get_a(&self) -> u8 {
+        (self.af >> 8) as u8
+    }
 }
 
 impl std::fmt::Debug for State {

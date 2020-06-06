@@ -4,6 +4,12 @@ extern crate log;
 #[macro_use]
 extern crate num_derive;
 
+#[cfg(test)]
+extern crate quickcheck;
+#[cfg(test)]
+#[macro_use]
+extern crate quickcheck_macros;
+
 use std::cell::Cell;
 use std::time::{Duration, Instant};
 
@@ -15,6 +21,12 @@ Obviously required traps:
 
 Likely required traps:
  * The other documented rst vectors
+   * 08 => OP1ToOP2
+   * 10 => FindSym
+   * 18 => PushRealO1
+   * 20 => Mov9ToOP1
+   * 30 => FPAdd
+ * LCD_BUSY_QUICK (0x000B; 47 cycles)
  * Ion vectors
  * MOS vectors
 
@@ -30,11 +42,17 @@ Ports that we probably need good fidelity for:
 
 mod bcalls;
 mod checksum;
-mod display;
+pub mod display;
 mod interrupt;
-mod memory;
+pub mod memory;
 mod tifiles;
-mod z80;
+pub mod z80;
+
+pub mod include {
+    pub mod ion;
+    pub mod mirageos;
+    pub mod tios;
+}
 
 pub use interrupt::InterruptController;
 pub use memory::Memory;
@@ -69,6 +87,10 @@ impl Emulator {
         *self = Self::new();
     }
 
+    pub fn is_running(&self) -> bool {
+        !self.terminate.get()
+    }
+
     /// Cycle count to force the core to stop executing.
     ///
     /// This is an arbitrarily large number of cycles, but not so large that
@@ -84,7 +106,7 @@ impl Emulator {
     pub fn run(&mut self, cpu: &mut Z80, frame_start: &Instant) {
         let frame_duration = Duration::from_nanos(1e9 as u64 / self.target_framerate as u64);
 
-        if self.terminate.get() {
+        if !self.is_running() {
             debug!("CPU terminated, sleeping for a frame");
             std::thread::sleep(frame_duration);
             return;
@@ -146,7 +168,7 @@ impl Emulator {
         use tifiles::{File, VariableType};
 
         let file = File::read_from(r)?;
-        let var = file.var;
+        let mut var = file.var;
         if var.ty != VariableType::Program && var.ty != VariableType::ProtectedProgram {
             return Err(LoadProgramError::UnsupportedType);
         }
@@ -160,15 +182,14 @@ impl Emulator {
         if var.data[2..4] != b"\xbb\x6d"[..] {
             return Err(LoadProgramError::InvalidSignature);
         }
-
-        let regs = cpu.regs();
+        let uses_ion_libraries = var.patch_ion_program();
 
         let code_size = internal_len - 2;
         let load_addr = 0x9d95u16; // userMem
-
         debug!("Loading {} byte(s) of code to {:04X}", code_size, load_addr);
         self.mem[load_addr..load_addr + code_size].copy_from_slice(&var.data[4..]);
 
+        let regs = cpu.regs_mut();
         // Set up stack to return to the reset vector at exit.
         self.mem[0xfffe] = 0;
         self.mem[0xffff] = 0;
@@ -179,6 +200,24 @@ impl Emulator {
         // Enable interrupts in mode 1
         regs.set_interrupt_enable(true);
         regs.set_im(1);
+
+        if uses_ion_libraries {
+            use include::{ion, mirageos};
+            // Set up the Ion vector table, aliased to the Mirage vectors. We only trap from
+            // Flash, so we can't directly trap the in-RAM vectors.
+            let mut vector = |addr: u16, target: u16| {
+                self.mem[addr] = 0xc3; // unconditional jp
+                self.mem.write_u16(addr + 1, target);
+            };
+            vector(ion::ionVersion, mirageos::ionVersion);
+            vector(ion::ionRandom, mirageos::ionRandom);
+            vector(ion::ionPutSprite, mirageos::ionPutSprite);
+            vector(ion::ionLargeSprite, mirageos::ionLargeSprite);
+            vector(ion::ionGetPixel, mirageos::ionGetPixel);
+            vector(ion::ionFastCopy, mirageos::ionFastCopy);
+            vector(ion::ionDetect, mirageos::ionDetect);
+            vector(ion::ionDecompress, mirageos::ionDecompress);
+        }
 
         Ok(var)
     }
@@ -217,7 +256,7 @@ impl Emulator {
                 error!(
                     "Unhandled memory read from {:#06x}! {:#?}",
                     addr,
-                    core.regs()
+                    core.regs_mut()
                 );
                 0xc9 // ret (try to limp along)
             }

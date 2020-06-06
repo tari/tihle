@@ -153,6 +153,54 @@ impl Variable {
             data,
         })
     }
+
+    /// Get the on-calculator contents of a variable.
+    ///
+    /// Many types use the first two bytes of data to indicate the size, and those
+    /// bytes are included in the variable data here. This function gets only the bytes
+    /// that are actual data, not the size bytes.
+    pub fn calc_data(&self) -> &[u8] {
+        if self.ty != VariableType::Program || self.ty != VariableType::ProtectedProgram {
+            unimplemented!("Only programs are currently supported for data");
+        }
+
+        &self.data[2..]
+    }
+
+    pub fn calc_data_mut(&mut self) -> &mut [u8] {
+        if self.ty != VariableType::Program && self.ty != VariableType::ProtectedProgram {
+            unimplemented!(
+                "Only programs are currently supported for data, not {:?}",
+                self.ty
+            );
+        }
+
+        &mut self.data[2..]
+    }
+
+    /// If this variable is an Ion program, patch it to execute as if it were nostub
+    /// and return whether it is an Ion program.
+    pub fn patch_ion_program(&mut self) -> bool {
+        // Ion programs are only even programs, of course.
+        if self.ty != VariableType::Program && self.ty != VariableType::ProtectedProgram {
+            return false;
+        }
+        let data = self.calc_data_mut();
+
+        // Ion programs start with the standard tAsmCmp signature (they're never unsquished),
+        // then either `ret` or `xor a`, followed by `jr nc, start` and a string description.
+        // The `xor a` form is for programs that don't use the Ion libraries, which thus don't
+        // need patching.
+        if data[..4] != b"\xbb\x6d\xc9\x30"[..] {
+            return false;
+        }
+
+        // Nop out the ret
+        data[2] = 0;
+        // Make the jump unconditional
+        data[3] = 0x18;
+        true
+    }
 }
 
 fn read_u8<R: Read>(mut src: R) -> IoResult<u8> {

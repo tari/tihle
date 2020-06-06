@@ -31,6 +31,15 @@ impl Memory {
         self[addr] = value as u8;
         self[addr + 1] = (value >> 8) as u8;
     }
+
+    /// Checked memory read; returns None if `addr` is not in RAM.
+    pub fn get(&self, addr: u16) -> Option<u8> {
+        if RAM_ADDRS.contains(&addr) {
+            Some(self[addr])
+        } else {
+            None
+        }
+    }
 }
 
 impl std::ops::Index<u16> for Memory {
