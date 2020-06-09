@@ -54,15 +54,15 @@ typedef union {
     zuint16 value_uint16;
 
 #ifdef IS_BIG_ENDIAN
-    // 0 is the low-order byte of these aggregates
+    // 0 is the high-order byte of these aggregates
     struct {
-        zuint8 index1;
         zuint8 index0;
+        zuint8 index1;
     } values_uint8;
 #else
     struct {
-        zuint8 index0;
         zuint8 index1;
+        zuint8 index0;
     } values_uint8;
 #endif
 } Z16Bit;
