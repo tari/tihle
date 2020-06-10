@@ -1,7 +1,1 @@
-
-// Ion information: http://joewing.net/projects/ti83/ion/devel.html
-// Ion libraries: http://joewing.net/projects/ti83/ion/libs.html
-
-pub fn ionFastCopy(&mut Emulator) -> usize {
-    52000
-}
+pub static MIRAGEOS_IMAGE: &[u8] = include_bytes!("mirageos.bin");

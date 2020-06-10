@@ -181,7 +181,7 @@ impl Variable {
     /// If this variable is an Ion program, patch it to execute as if it were nostub
     /// and return whether it is an Ion program.
     pub fn patch_ion_program(&mut self) -> bool {
-        // Ion programs are only even programs, of course.
+        // Ion programs are only ever programs, of course.
         if self.ty != VariableType::Program && self.ty != VariableType::ProtectedProgram {
             return false;
         }
@@ -199,6 +199,43 @@ impl Variable {
         data[2] = 0;
         // Make the jump unconditional
         data[3] = 0x18;
+        true
+    }
+
+    /// If this variable is a MirageOS program, patch it to execute as if it were nostub
+    /// and return whether it is a MirageOS program.
+    pub fn patch_mos_program(&mut self) -> bool {
+        // MOS programs are only ever programs, of course.
+        if self.ty != VariableType::Program && self.ty != VariableType::ProtectedProgram {
+            return false;
+        }
+        let data = self.calc_data_mut();
+
+        // MOS programs start with the standard tAsmCmp signature (they're never unsquished),
+        // then `ret` and a byte with value 1 or 3. Then 30 bytes of sprite data as the program
+        // icon, the address of the quit routine (only if the second byte is 3) and a
+        // null-terminated description string.
+        let has_quit_handler: bool;
+        if data[..4] == b"\xbb\x6d\xc9\x01"[..] {
+            // Regular Mirage program: ret \ .db 1
+            has_quit_handler = true;
+        } else if data[..4] == b"\xbb\x6d\xc9\x03"[..] {
+            // With exit handler (if quit via tasker interrupt)
+            has_quit_handler = false;
+        } else {
+            // Not a MOS program
+            return false;
+        }
+
+        // Offset of description, including type bytes (from 9d93)
+        let descr_ofs = if has_quit_handler { 36 } else { 34 };
+        let descr_len = data[descr_ofs..].iter().position(|&x| x == 0).unwrap() + 1;
+        let start_addr = 0x9d93 + descr_ofs + descr_len;
+
+        // Patch in a jp to the start address (wiping out the first byte of the icon)
+        data[2] = 0xc3;
+        data[3] = start_addr as u8;
+        data[4] = (start_addr >> 8) as u8;
         true
     }
 }

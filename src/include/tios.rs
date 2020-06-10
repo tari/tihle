@@ -4,6 +4,8 @@
 pub const curRow: u16 = 0x844B;
 pub const curCol: u16 = 0x844C;
 
+pub const OP1: u16 = 0x8478;
+
 pub const textShadow: u16 = 0x8508;
 
 pub const penCol: u16 = 0x86d7;

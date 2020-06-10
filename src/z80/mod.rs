@@ -1,3 +1,4 @@
+use bitflags::bitflags;
 use crate::Emulator;
 use std::ffi::c_void;
 use std::ptr;
@@ -6,6 +7,17 @@ mod ffi;
 
 pub struct Z80 {
     pub z80: ffi::Z80,
+}
+
+bitflags! {
+    pub struct Flags: u8 {
+        const S = 0x80;
+        const Z = 0x40;
+        const H = 0x10;
+        const PV = 0x04;
+        const N = 0x02;
+        const C = 0x01;
+    }
 }
 
 type FfiContext = (*mut Z80, *mut Emulator);
@@ -51,12 +63,16 @@ impl Z80 {
         emu.write_memory(core, address, value)
     }
 
-    extern "C" fn handle_io_read(_ctx: ffi::Ctx, _address: u16) -> u8 {
-        unimplemented!()
+    extern "C" fn handle_io_read(ctx: ffi::Ctx, address: u16) -> u8 {
+        let (core, emu) = unsafe { Self::ctx_from_ptr(ctx) };
+
+        emu.read_io(core, address as u8)
     }
 
-    extern "C" fn handle_io_write(_ctx: ffi::Ctx, _address: u16, _value: u8) {
-        unimplemented!()
+    extern "C" fn handle_io_write(ctx: ffi::Ctx, address: u16, value: u8) {
+        let (core, emu) = unsafe { Self::ctx_from_ptr(ctx) };
+
+        emu.write_io(core, address as u8, value);
     }
 
     extern "C" fn handle_halt(ctx: ffi::Ctx, halted: u8) {
@@ -98,6 +114,18 @@ impl Z80 {
 
     pub fn regs(&self) -> &ffi::State {
         &self.z80.regs
+    }
+
+    pub fn flags(&self) -> Flags {
+        unsafe {
+            Flags::from_bits_unchecked(self.regs().af as u8)
+        }
+    }
+
+    pub fn set_flags(&mut self, flags: Flags) {
+        let regs = self.regs_mut();
+        regs.af &= 0xFF00;
+        regs.af |= flags.bits() as u16;
     }
 
     pub fn set_irq(&mut self, pending: bool) {

@@ -31,7 +31,6 @@ impl Window {
             .build()
             .expect("Failed to build WindowCanvas");
 
-
         Self {
             texture_creator: canvas.texture_creator(),
             canvas,
@@ -84,7 +83,6 @@ impl<'a> Video<'a> {
     }
 
     fn update(&mut self, display: &Display) {
-        let mut i = 0u8;
         for (&src, dst) in display
             .get_buffer()
             .iter()
@@ -132,8 +130,6 @@ fn main() {
     )
     .expect("Failed to load program");
 
-    let mut x = 0;
-    let mut y = 0;
     trace!("Entering run loop. {:#?}", cpu.regs_mut());
     'runloop: loop {
         let frame_start = Instant::now();
@@ -172,18 +168,9 @@ fn main() {
             }
         }
 
-        /*
-        emu.run(&mut cpu, &frame_start);
-         */
-        emu.display.blit_8bit_over(0, 0, &[0x5a, 0xa5, 0x5a, 0xa5], 6);
-
-        /*
-        trace!("Invert pixel at ({},{})", x, y);
-        emu.display.invert_pixel(x, y);
-        x = (x + 1) % 96;
-        if x == 0 {
-            y = (y + 1) % 64;
+        if !emu.is_running() {
+            break;
         }
-         */
+        emu.run(&mut cpu, &frame_start);
     }
 }

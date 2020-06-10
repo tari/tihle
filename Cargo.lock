@@ -346,6 +346,7 @@ name = "tihle"
 version = "0.1.0"
 dependencies = [
  "arr_macro",
+ "bitflags",
  "cc",
  "log",
  "num-derive",

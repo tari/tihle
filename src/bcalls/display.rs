@@ -17,7 +17,8 @@ pub fn ClrLCDFull(emu: &mut Emulator) -> usize {
 }
 
 pub fn GrBufCpy(emu: &mut Emulator) -> usize {
-    unimplemented!();
+    emu.display
+        .blit_fullscreen(&emu.mem[tios::plotSScreen..tios::plotSScreen + 768]);
     60000 //  Slower than ionFastCopy
 }
 
@@ -93,10 +94,64 @@ fn put_char(emu: &mut Emulator, c: u8, col: u8, row: u8) {
         col,
         row
     );
-    let char_index = (c * 7) as usize;
+    let char_index = c as usize * 7;
+    debug!(
+        "Display char {:02x} @ {}: data = {:?}",
+        c,
+        char_index,
+        &LARGE_FONT[char_index..char_index + 7]
+    );
 
     emu.display
         .blit_8bit_over(col * 6, row * 8, &LARGE_FONT[char_index..char_index + 7], 6);
 }
 
 static LARGE_FONT: &[u8] = include_bytes!("lgfont.bin");
+
+pub fn DispHL(emu: &mut Emulator, core: &mut Z80) -> usize {
+    unimplemented!();
+}
+
+/// Display a small font character, returning the character width in pixels.
+fn put_char_small(emu: &mut Emulator, c: u8, col: u8, row: u8) -> u8 {
+    let bitmap_index = 6 * c as usize;
+    let width = SMALL_FONT_WIDTHS[c as usize];
+
+    emu.display.blit_8bit_over(col, row, &SMALL_FONT[bitmap_index..bitmap_index+6], width);
+    width
+}
+
+pub fn VPutS(emu: &mut Emulator, core: &mut Z80) -> usize {
+    let mut n_chars = 0;
+    let mut ptr = core.regs().hl;
+    let mut x = emu.mem[tios::penCol];
+    let y = emu.mem[tios::penRow];
+
+    loop {
+        let c = emu.mem[ptr];
+        if c == 0 {
+            break;
+        }
+
+        let width = put_char_small(emu, c, x, y);
+        x = std::cmp::min(96, x + width);
+        ptr += 1;
+        n_chars += 1;
+    }
+
+    emu.mem[tios::penCol] = x;
+    VPUTC_TIME * n_chars
+}
+
+pub fn VPutMap(emu: &mut Emulator, core: &mut Z80) -> usize {
+    // TODO handle textInverse, textEraseBelow, textWrite and fracDrawLFont flags
+    put_char_small(emu, core.regs().get_a(), emu.mem[tios::penCol], emu.mem[tios::penRow]);
+    VPUTC_TIME
+}
+
+const VPUTC_TIME: usize = 400;
+
+// Small font is variable-width, 6 pixels tall
+static SMALL_FONT: &[u8] = include_bytes!("smlfont.bin");
+static SMALL_FONT_WIDTHS: &[u8] = include_bytes!("smlfont_widths.bin");
+

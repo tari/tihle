@@ -45,6 +45,7 @@ mod checksum;
 pub mod display;
 mod interrupt;
 pub mod memory;
+mod shells;
 mod tifiles;
 pub mod z80;
 
@@ -56,8 +57,7 @@ pub mod include {
 
 pub use interrupt::InterruptController;
 pub use memory::Memory;
-use std::ops::RangeInclusive;
-pub use z80::Z80;
+pub use z80::{Z80, Flags};
 
 pub struct Emulator {
     clock_rate: u32,
@@ -74,7 +74,7 @@ impl Emulator {
     pub fn new() -> Self {
         Emulator {
             clock_rate: 6_000_000,
-            mem: Memory::new(),
+            mem: Memory::new(shells::MIRAGEOS_IMAGE),
             interrupt_controller: InterruptController::new(),
             display: display::Display::new(),
 
@@ -118,6 +118,9 @@ impl Emulator {
             irq_pending,
             until_next_interrupt
         );
+        if irq_pending {
+            info!("Setting IRQ line high to service interrupt");
+        }
         cpu.set_irq(irq_pending);
 
         // Run the CPU for a frame or until the next interrupt,
@@ -183,6 +186,7 @@ impl Emulator {
             return Err(LoadProgramError::InvalidSignature);
         }
         let uses_ion_libraries = var.patch_ion_program();
+        var.patch_mos_program();
 
         let code_size = internal_len - 2;
         let load_addr = 0x9d95u16; // userMem
@@ -196,10 +200,6 @@ impl Emulator {
         regs.sp = 0xfffe;
         // Begin executing at load address
         regs.pc = load_addr as u16;
-
-        // Enable interrupts in mode 1
-        regs.set_interrupt_enable(true);
-        regs.set_im(1);
 
         if uses_ion_libraries {
             use include::{ion, mirageos};
@@ -219,26 +219,49 @@ impl Emulator {
             vector(ion::ionDecompress, mirageos::ionDecompress);
         }
 
+        self.setup_tios_context(cpu);
+
         Ok(var)
     }
 
-    const RAM_ADDRS: RangeInclusive<u16> = 0x8000..=0xFFFF;
+    fn setup_tios_context(&mut self, core: &mut Z80) {
+        let regs = core.regs_mut();
+
+        // Enable interrupts in mode 1
+        regs.set_interrupt_enable(true);
+        regs.set_im(1);
+
+        // IY points to flags
+        regs.iy = include::tios::flags;
+
+        // TODO we may need to set up the VAT and other things for Mirage.
+    }
+
 
     #[inline]
     fn read_memory(&mut self, core: &mut Z80, addr: u16) -> u8 {
-        trace!("Memory read from {:04X}", addr);
-        if Self::RAM_ADDRS.contains(&addr) {
-            return self.mem[addr];
+        if let Some(byte) = self.mem.get(addr) {
+            trace!("Memory read {:04X} -> {:02X}", addr, byte);
+            return byte;
         }
 
         let mut elapsed: usize = 0;
         let read_byte: u8 = match addr {
+            // Reset vector: out (255), a \ rst 00h
+            // The IO write handler sets the terminate flag on any write to port 255,
+            // so when 0 is read we force the CPU to stop if the terminate flag is set,
+            // otherwise return instructions to write to that port and reset again.
+            // We do this so simply trying to read "random" data from ROM works, and it
+            // takes a specific action that shouldn't be taken by a working program to
+            // terminate execution.
             0x0000 => {
-                info!("Trapped reset; terminating CPU.");
-                self.terminate.set(true);
-                elapsed = Self::FORCE_YIELD;
-                0xc7 // rst 00h; infinite loop
+                if self.terminate.get() {
+                    elapsed = Self::FORCE_YIELD;
+                }
+                0xd3
             }
+            0x0001 => 255,
+            0x0002 => 0xc7,
 
             0x0028 => {
                 elapsed = bcalls::bcall_trap(self, core);
@@ -254,9 +277,9 @@ impl Emulator {
 
             _ => {
                 error!(
-                    "Unhandled memory read from {:#06x}! {:#?}",
+                    "Unhandled memory read from {:04X}! {:#?}",
                     addr,
-                    core.regs_mut()
+                    core.regs()
                 );
                 0xc9 // ret (try to limp along)
             }
@@ -267,16 +290,47 @@ impl Emulator {
     }
 
     #[inline]
-    fn write_memory(&mut self, _core: &mut Z80, addr: u16, value: u8) {
-        if Self::RAM_ADDRS.contains(&addr) {
-            self.mem[addr] = value;
-        } else {
-            warn!("Unhandled memory write to {:#06x}", addr);
+    fn write_memory(&mut self, core: &mut Z80, addr: u16, value: u8) {
+        trace!("Memory write {:02X} -> {:04X}", value, addr);
+        if self.mem.put(addr, value) {
+            warn!("Unhandled memory write to {:04X}! {:#?}", addr, core.regs());
         }
     }
 
     fn wait_for_interrupt(&mut self, _core: &mut Z80) {
         unimplemented!()
+    }
+
+    fn write_io(&mut self, _core: &mut Z80, port: u8, value: u8) {
+        match port {
+            0x10 => {
+                self.display.write_control(value);
+            },
+            0x11 => {
+                self.display.write_data(value);
+            },
+            0xFF if self.is_running() => {
+                info!("Got write to port 255; terminating emulation");
+                self.terminate.set(true);
+            },
+            _ => {
+                warn!(
+                    "Unhandled port write to {:#04x} (value={:#04x})",
+                    port, value
+                );
+            }
+        }
+    }
+
+    fn read_io(&mut self, _core: &mut Z80, port: u8) -> u8 {
+        match port {
+            0x10 => self.display.read_status(),
+            0x11 => self.display.read_data(),
+            _ => {
+                warn!("Unhandled port read from {:#04x}", port);
+                0
+            }
+        }
     }
 }
 

@@ -1,6 +1,7 @@
 use crate::{Emulator, Z80};
 
 mod display;
+mod memory;
 
 pub fn bcall_trap(emu: &mut Emulator, core: &mut Z80) -> usize {
     // Vector is inline in the caller's code; read from the return target
@@ -14,12 +15,16 @@ pub fn bcall_trap(emu: &mut Emulator, core: &mut Z80) -> usize {
     match bcall_addr {
         0x4501 => display::PutMap(emu, core),
         0x4504 => display::PutC(emu, core),
+        0x4507 => display::DispHL(emu, core),
         0x450A => display::PutS(emu, core),
         0x4540 => display::ClrLCDFull(emu),
         0x4558 => display::HomeUp(emu),
+        0x455e => display::VPutMap(emu, core),
+        0x4561 => display::VPutS(emu, core),
         0x4860 => display::GrBufCpy(emu),
+        0x4C33 => memory::MemSet(emu, core),
         _ => {
-            warn!("Unhandled bcall: {:04x}", bcall_addr);
+            warn!("Unhandled bcall: {:04x} {:#?}", bcall_addr, core.regs());
             0
         }
     }
