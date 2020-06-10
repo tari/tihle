@@ -1,0 +1,117 @@
+ Ion has eight built-in library routines to make programs smaller and easier to write. The function names are included in ion.inc and you may call them or jump to them at any time in your program provided that your program does not alter the data directly following your program. If you need memory allocation, I recommend creating a temporary program and deleting it after your program is finished. You may also use _insertmem (and _deletemem). However, if you use _insertmem and _deletemem, the library vector table may be destroyed thereby making it impossible to call a library function in your program. It is possible to restore the vector table, but this would require some effort. See the Ion source code if you need to see how the vector table works.
+Library Functions
+
+    ionVersion
+    ionRandom
+    ionPutSprite
+    ionLargeSprite
+    ionGetPixel
+    ionFastCopy
+    ionDetect
+    ionDecompress
+
+ionVersion
+
+ionVersion:
+   Returns version and compatibility numbers.
+   Input:   nothing
+   Output: hl=Ion version number (e.g 256=1.0)
+      a=Ion compatibility number
+      d=Library compatibility number
+      e=number of library routines
+   Destroys: a de hl
+
+ionRandom
+
+ionRandom:
+   Generates an eight-bit random number.
+   Input:   b=upper bound
+   Output: a=answer (between 0 and b-1)
+      b=0
+   Destroys af b
+
+ionPutSprite
+
+ionPutSprite:
+   Draw a sprite to the graph buffer (XOR).
+   Input:   b=sprite height
+      a=x coordinate
+      l=y coordinate
+      ix->sprite
+   Output:   Sprite is XORed to the graph buffer.
+      ix->next sprite
+   Destroys: af bc de hl ix
+
+ionLargeSprite
+
+ionLargeSprite:
+   Draw a variable width sprite to the graph buffer (XOR).
+   Input:   ix->sprite
+      a=x coordinate
+      l=y coordinate
+      b=sprite height
+      c=sprite width (in bytes, so divide by 8)
+   Output:   sprite is XORed to the graph buffer
+      ix->next sprite
+   Destroys: af bc de hl ix af'
+
+ionGetPixel
+
+ionGetPixel:
+   Get pixel offset and mask.
+   Input:   a=x coordinate
+      e=y coordinate
+   Output:   a=pixel mask
+      hl->offset (in the graph buffer)
+   Destroys: af bc de hl
+
+ionFastCopy
+
+ionFastCopy:
+   Copy the graph buffer to the screen, FAST!
+   Input:   nothing
+   Output:   graph buffer is copied to the screen
+   Destroys: af bc de hl
+
+ionDetect
+
+ionDetect:
+   Find a file in the VAT.
+   Input:   hl=place to begin search
+      ix->detection string (zero terminated)
+   Output:   de=place stopped + 1
+      hl->program data (after detection string)
+      z=0 for success, z=1 if failed
+   Destroys: af bc de hl
+
+ionDecompress
+
+ionDecompress:
+   Decompress data.
+   Input:   hl->compressed data
+      de->place to load uncompressed data
+      b=length of compressed data
+      c=compression factor {1,3,15}
+   Output:   data is decompressed
+      hl->next byte of compressed data
+   Destroys: af bc de hl
+
+History
+
+    Version 1.0 (libCompatibility 0)
+        First Release
+        Eight routines
+    Version 1.1 (libCompatibility 0)
+        The ionDetect routine should work properly on the TI-83 Plus now.
+        I slowed down the ionFastCopy routine so that it would no cause the screen to become distored, which happened on some calculators.
+    Version 1.2 (libCompatibility 0)
+        No changes.
+    Version 1.3 (libCompatibility 0)
+        Improved ionDetect.
+    Version 1.4 (libCompatibility 0)
+        No changes.
+    Version 1.5 (libCompatibility 0)
+        TI-83 Plus: ionDetect can now detect programs in Flash ROM. Note that any data written to an external file stored in Flash will be lost next time the file is detected.
+    Version 1.6 (libCompatibility 0)
+        TI-83 Plus: Fixed a bug in ionDetect that caused some programs to crash (due to the v1.5 change).
+        A few minor optimizations.

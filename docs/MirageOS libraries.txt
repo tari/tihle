@@ -1,0 +1,238 @@
+In most respects, programming for Mirage is similar to programming for Ion.  You still use the bcall() macro when calling ROM routines, and the familiar Ion libraries routines are available.  In addition to these Ion library routines, additional library routines have been made available.
+There are a few things you must be aware of when programming for Mirage:
+1) You may not alter any of the data in cmdShadow.  This data is used by Mirage.
+2) textShadow is a copy of the homescreen, and changes you make to textShadow will be reflected
+   on the homescreen.
+3) By default, there will be an interrupt running during your program.  This interrupt is located
+   in the statVars location.  If you wish to use statVars for variable storage, you must disable
+   interrupts or set IM 1 before doing so.
+4) You may use all of savesscreen, appbackupscreen, and tempswaparea for variable storage.
+
+One of the new features of MirageOS is the interrupt routine.  By using the setupint command you can customize what interrupts you want running during your program.  By default, only the task interrupt will be running when the program starts.  Here is a description of what each interrupt does:
+-timer		- Keeps track of a 3 counter timer system
+		- timer1 = first timer, incremented every interrupt
+		- timer1max = maximum value for first timer, when reached timer1 is set to zero
+		-  and timer2 is incremented
+		- timer2 = second timer
+		- timer2max = maximum value for timer2, when reached timer2 is set to zero and
+		-  timer3 is incremented
+		- timer3 = third timer
+-getkey		- Disables 2nd+off in _getkey call
+-apd		- Will APD after about 3 minutes if no keys are pressed
+-task		- Allows in program on+hotkey combinations (ie. on+clear to quit)
+-keydelay	- Removes first delay when arrow keys are initally pressed, good for games
+-custom		- Enables a custom interrupt routine.  The address in (custintaddr) will be
+		-  called every interrupt
+
+Library Calls:
+iversion	- ion version routine
+irandom		- ion random routine
+isprite		- ion putsprite routine
+ilsprite	- ion largesprite routine
+igetpix		- ion getpixel routine
+ifastcopy	- ion fastcopy routine
+idetect		- ion detect routine (with flash detection)
+idecomp		- ion decompress routine
+
+directin	- Direct input routine
+		- Input  a = key group
+		- Output z = no key was pressed
+		-        a = key code
+
+sendbytetios	- Sends a byte out the link port in TIOS protcol
+		- Input  a = byte to send
+		- Output nz = error, couldn't send
+
+getbytetios	- Receives a byte from the link port in TIOS protocol
+		- Input  none
+		- Output nz = error, couldn't send
+		-        a = byte received
+
+version		- Returns the MirageOS version
+		- Input  none
+		- Output h = major version
+		-        l = minor version
+		-        a = lib compatability number
+
+setvputs	- Sets graph cursor and displays text
+		- Input  de = cursor location
+		-        hl -> string
+		- Ouput  String displayed
+
+setpixel	- Runs getpixel then or's the pixel to the graphscreen
+
+fastcopys	- Runs fastcopy, but preserves all registers
+
+delayb		- Delays using halt loop
+		- Input  b = delay amount
+		- Output delay
+
+multhe		- Multiplies h*e (fast!)
+		- Input  h = first operand
+		-        e = second operand
+		- Output hl = h*e
+
+multhl		- Same as multhe, but multiplies h*l
+
+quittoshell	- Returns to MirageOS immediatly, stack level does not matter
+
+fastline	- draws a line to the graph buffer (fast!)
+		- Input  (h,l) = (x1,y1)
+		-        (d,e) = (x2,y2)
+		-        a = line style
+		-            0 = white
+		-            1 = black
+		-            2 = xor
+		-            3 = pattern (one byte pattern stored in (mlinebitmap))
+		- Output line draw to graphbuffer
+
+pixelonhl	- Turns on pixel (h,l) in graph buffer
+
+pixeloff	- Turns off pixel (a,e) in graph buffer
+
+pixelxor	- Xor pixel (a,e) in graph buffer
+
+pixeltest	- Returns z = state of pixel (a,e) in graph buffer
+
+pixeloffhl	- Turns off pixel (h,l) in graph buffer
+
+pixelxorhl	- Xor pixel (h,l) in graph buffer
+
+pixeltesthl	- Returns z = state of pixel (h,l) in graph buffer
+
+fastlineb	- Same as fastline, but line style set to black
+
+fastlinew	- Same as fastline, but line style set to while
+
+fastlinex	- Same as fastline, but line style set to xor
+
+pointonc	- Clips and turns on pixel (a,e) in graph buffer
+
+pointoffc	- Clips and turns off pixel (a,e) in graph buffer
+
+pointxorc	- Clips and xor pixel (a,e) in graph buffer
+
+centertext	- Centers text (horizontally) on the screen and displays
+		- Input  a = penrow to display at
+		-        hl -> text
+		- Output displays centered text
+		-        destroys op registers
+
+cphlbc		- Compares hl and bc
+
+putsprite8	- Calls the Ion putsprite routine, but sets size to 8
+
+fastcopyb	- Calls fastcopy, but displays the 768 bytes at (hl)
+
+vputsc		- Calls vputs, but displays to both screen and graph buffer
+
+scrolld7	- Scrolls graph buffer down 7 lines
+
+vnewline	- Increments penrow by 7, sets pencol to 0, and calls scrolld7 if necessary
+
+rand127		- Returns a number between 0 and 127 in register a
+
+disprle		- Decompresses of rle compressed data into 768 bytes
+		- Input  hl = locataion of compressed data
+		-        de = location to store decompressed data
+
+cphlde		- Compares hl and de
+
+multdehl	- Multiplies hl and de
+		- Input  de = operand 1
+		-        hl = operand 2
+		- Output dehl = de*hl
+
+fastlined	- Same as fastline, but sets line style to dotted
+
+disprlel	- Same as disprle, but bc = number of decompressed bytes
+
+getnext		- Find the next prog/list vat entry
+		- Input  hl = current entry
+		- Output z = no more entries
+		-        hl = next entry
+
+getprev		- Same as getnext, but finds previous vat entry
+
+compstrs	- Compares two null terminated strings
+		- Input  hl -> string 1
+		-        de -> string 2
+		- Output z = strings are the same
+		-        hl -> byte after string1's null terminator
+
+nextstr		- Find next string
+		- Input  hl -> string
+		- Output hl -> byte after string's null terminator
+
+fastrectangle	- Draws a rectangle the graph buffer (fast!)
+		- Dunno
+
+gettext		- Inputs text in small font
+		- Input  b = max number of characters
+		-        hl = where to store
+		- Output text stored to (hl)
+
+gettextv	- Inputs text in small font, with options
+		- Input b = max number of characters
+		-       hl = where to store
+		-       c = option byte
+		-           bit 0 set = don't display cursor
+		-           bit 1 set = don't display to screen or graphbuffer, just save to (hl)
+		-           bit 2 set = don't allow numbers
+		-           bit 3 set = don't allow backspace or clear
+
+disp3spaces	- Displays 3 spaces in small font
+
+vputa		- Displays character in register a to both screen and graph buffer
+
+delprog		- Deletes a program
+		- Input  hl -> type byte of program's vat entry
+		- Output program is deleted
+
+compstrsn	- Same as compstrs except b = number of bytes to compare
+
+sendprog	- Sends a program via link port to waiting calc in TIOS
+		- Input  hl -> type byte of program's vat entry
+		- Output nz = send failed
+
+arcprog		- Toggles archive status
+		- Input  hl -> type byte of program's vat entry
+		- Output program is (un)archived
+
+vatswap		- Swaps two vat entries
+		- Input  hl -> type byte of entry 1
+		-        de -> type byte of entry 2
+		- Output vat entries are swapped
+
+renameprog	- Renames a program
+		- Input  hl -> type byte of vat entry of program
+		-        op1+1 = new name for program
+		- Output z = program could not be renamed
+
+largespritehl	- Same as Ion largesprite routine, but h = x coordinate
+
+setupint	- Sets up the Mirage interrupt
+		- Input  a = interrupts to enable
+		-          bit 0 = timer interrupt
+		-          bit 1 = getkey interrupt
+		-          bit 2 = apd interrupt
+		-          bit 3 = task interrupt
+		-          bit 4 = keydelay interrupt
+		-          bit 5 = custom interrupt
+		- Output selected interrupts are loaded to statvars and enabled
+
+getchecksum	- Calculates a 16 bit checksum of a group of bytes
+		- Input  hl -> data to checksum
+		-        bc = number of bytes to checksum
+		- Output hl = checksum
+
+freearc		- Returns a string of the amount of free archive memory
+		- Input  none
+		- Output op3 -> zero terminated string of about of free archive memory
+
+swapram		- Swaps two segments of RAM quickly through the stack
+		- Input  de -> first segment of RAM
+		-        hl -> second segment of RAM
+		-        bc -> amount of RAM to swap
+		- Output RAM is quickly swapped through the stack
+

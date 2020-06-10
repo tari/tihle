@@ -1,0 +1,63 @@
+MirageOS introductes some new header formats to allow access to builtin MirageOS library routines, and other MirageOS function.  The basic MirageOS header format is as follows:
+#include	"ti83plus.inc"			;General TI-83 Plus include file
+#include	"mirage.inc"			;MirageOS include file
+	.org	$9d93				;Origin (set back two to account for AsmPrgm)
+	.db	$BB,$6D				;Compiled AsmPrgm token
+	ret					;So TIOS wont run the program
+	.db	1				;Identifier as MirageOS program
+	.db	%00000000,%00000000		;15x15 button
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	"Description",0			;Zero terminated description
+						;Program code starts here
+
+There is also a modified MirageOS header format.  This format is the same as the previous, but provides a quit address that will be called if the program is forced to quit via [on]+MODE or [on]+CLEAR.  This is useful if memory needs to be deallocated, variables rearchived, etc.  (Note: the quit routine does not need to worry about the stack state, it will be reset by the tasker before the quit routine is called.)  The modified header format is as follows:
+#include	"ti83plus.inc"			;General TI-83 Plus include file
+#include	"mirage.inc"			;MirageOS include file
+	.org	$9d93				;Origin (set back two to account for AsmPrgm)
+	.db	$BB,$6D				;Compiled AsmPrgm token
+	ret					;So TIOS wont run the program
+	.db	3				;Identify modified MirageOS with quit routine
+	.db	%00000000,%00000000		;15x15 button
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.db	%00000000,%00000000
+	.dw	quitaddr			;pointer to address of quit routine
+	.db	"Description",0			;Zero terminated description
+						;Program code starts here
+
+External interfaces have their own header format as well.  It is imperative that you send an email to mirage@detacheds.com and request a unique external interface ID# for your interface.  Otherwise all sorts of problems could arrise from multiple interfaces using the same ID#'s.  The External interface header is as follows:
+#include	"ti83plus.inc"			;General TI-83 Plus include file
+#include	"mirage.inc"			;MirageOS include file
+#include	"mirgui.inc"			;MirageOS External Interface include file
+	.org	$9d93				;Origin (set back two to account for AsmPrgm)
+	.db	$BB,$6D				;Compiled AsmPrgm token
+	ret					;So TIOS wont run the interface
+	.db	2				;Identfies as an External Interface
+	.db	ID#				;Unique ID#, email mirage@detacheds.com to obtain
+	.db	xcoord				;X coordinate to display description at
+	.db	"Description",0			;Zero terminated description for Interface
+						;Interface code starts here
