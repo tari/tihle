@@ -1,3 +1,22 @@
+//! A TI-8x calculator emulator.
+//!
+//! While the 8x series (83+/SE, 84+/SE) are simple to emulate and there are numerous other
+//! emulators out there, tihle is unique in that it is meant to run programs without depending
+//! on any nonfree code.
+//!
+//! ## Traps
+//!
+//! Traps make emulation feasible without depending on a complete software implementation by
+//! allowing chosen code to trap into emulator-provided code that is often simpler to implement
+//! and more performant than equivalent emulated code would be.
+//!
+//! The CPU traps on executing the instruction `ED 25 nn nn`. This is unusual as it is a 4-byte
+//! instruction unlike any others on the Z80, but it is not known to be a useful undocumented
+//! instruction on the Z80, nor is it defined on the eZ80.
+//!
+//! The 16-bit value (`nn nn`) in the trap instruction identifies the action to be taken by the
+//! emulator in response to the trap.
+
 #[macro_use]
 extern crate log;
 
@@ -10,6 +29,7 @@ extern crate quickcheck;
 #[macro_use]
 extern crate quickcheck_macros;
 
+use num_traits::FromPrimitive;
 use std::cell::Cell;
 use std::time::{Duration, Instant};
 
@@ -38,6 +58,18 @@ Ports that we probably need good fidelity for:
  * Keypad ports
  * LCD ports
 
+Used by phoenix:
+ * _Disphl
+ * _VPutMap
+ * _ClrLCDFull
+ * idetect
+ * _divhlby10
+ * _VPutS
+ * _GetCSC
+ * flags + 13 (appFlags)
+ * LCD ports
+ * Mirage setupint
+
 */
 
 mod bcalls;
@@ -47,6 +79,7 @@ mod interrupt;
 pub mod memory;
 mod shells;
 mod tifiles;
+mod traps;
 pub mod z80;
 
 pub mod include {
@@ -57,7 +90,7 @@ pub mod include {
 
 pub use interrupt::InterruptController;
 pub use memory::Memory;
-pub use z80::{Z80, Flags};
+pub use z80::{Flags, Z80};
 
 pub struct Emulator {
     clock_rate: u32,
@@ -70,11 +103,13 @@ pub struct Emulator {
     terminate: Cell<bool>,
 }
 
+static PAGE_ZERO: &[u8; 0x4000] = include_bytes!("../os.bin");
+
 impl Emulator {
     pub fn new() -> Self {
         Emulator {
             clock_rate: 6_000_000,
-            mem: Memory::new(shells::MIRAGEOS_IMAGE),
+            mem: Memory::new(PAGE_ZERO, shells::MIRAGEOS_IMAGE),
             interrupt_controller: InterruptController::new(),
             display: display::Display::new(),
 
@@ -203,8 +238,7 @@ impl Emulator {
 
         if uses_ion_libraries {
             use include::{ion, mirageos};
-            // Set up the Ion vector table, aliased to the Mirage vectors. We only trap from
-            // Flash, so we can't directly trap the in-RAM vectors.
+            // Set up the Ion vector table, aliased to the Mirage vectors.
             let mut vector = |addr: u16, target: u16| {
                 self.mem[addr] = 0xc3; // unconditional jp
                 self.mem.write_u16(addr + 1, target);
@@ -237,63 +271,18 @@ impl Emulator {
         // TODO we may need to set up the VAT and other things for Mirage.
     }
 
-
     #[inline]
     fn read_memory(&mut self, core: &mut Z80, addr: u16) -> u8 {
-        if let Some(byte) = self.mem.get(addr) {
-            trace!("Memory read {:04X} -> {:02X}", addr, byte);
-            return byte;
-        }
-
-        let mut elapsed: usize = 0;
-        let read_byte: u8 = match addr {
-            // Reset vector: out (255), a \ rst 00h
-            // The IO write handler sets the terminate flag on any write to port 255,
-            // so when 0 is read we force the CPU to stop if the terminate flag is set,
-            // otherwise return instructions to write to that port and reset again.
-            // We do this so simply trying to read "random" data from ROM works, and it
-            // takes a specific action that shouldn't be taken by a working program to
-            // terminate execution.
-            0x0000 => {
-                if self.terminate.get() {
-                    elapsed = Self::FORCE_YIELD;
-                }
-                0xd3
-            }
-            0x0001 => 255,
-            0x0002 => 0xc7,
-
-            0x0028 => {
-                elapsed = bcalls::bcall_trap(self, core);
-                0xc9 // return normally after trap
-            }
-
-            0x0038 => {
-                0xed // reti byte 1
-            }
-            0x0039 => {
-                0x4d // reti byte 2
-            }
-
-            _ => {
-                error!(
-                    "Unhandled memory read from {:04X}! {:#?}",
-                    addr,
-                    core.regs()
-                );
-                0xc9 // ret (try to limp along)
-            }
-        };
-
-        core.z80.cycles += elapsed;
-        read_byte
+        let byte = self.mem[addr];
+        trace!("Memory read {:04X} -> {:02X}", addr, byte);
+        byte
     }
 
     #[inline]
     fn write_memory(&mut self, core: &mut Z80, addr: u16, value: u8) {
         trace!("Memory write {:02X} -> {:04X}", value, addr);
-        if self.mem.put(addr, value) {
-            warn!("Unhandled memory write to {:04X}! {:#?}", addr, core.regs());
+        if self.mem.put(addr, value).is_err() {
+            info!("{:#?}", core.regs());
         }
     }
 
@@ -305,14 +294,14 @@ impl Emulator {
         match port {
             0x10 => {
                 self.display.write_control(value);
-            },
+            }
             0x11 => {
                 self.display.write_data(value);
-            },
+            }
             0xFF if self.is_running() => {
                 info!("Got write to port 255; terminating emulation");
                 self.terminate.set(true);
-            },
+            }
             _ => {
                 warn!(
                     "Unhandled port write to {:#04x} (value={:#04x})",
@@ -330,6 +319,14 @@ impl Emulator {
                 warn!("Unhandled port read from {:#04x}", port);
                 0
             }
+        }
+    }
+
+    fn trap(&mut self, trap_no: u16, core: &mut Z80) -> usize {
+        if let Some(trap) = traps::Trap::from_u16(trap_no) {
+            trap.handle(self, core)
+        } else {
+            panic!("Unrecognized trap: {}", trap_no);
         }
     }
 }

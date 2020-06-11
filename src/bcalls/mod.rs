@@ -24,16 +24,11 @@ pub fn bcall_trap(emu: &mut Emulator, core: &mut Z80) -> usize {
         0x4860 => display::GrBufCpy(emu),
         0x4C33 => memory::MemSet(emu, core),
         _ => {
-            warn!("Unhandled bcall: {:04x} {:#?}", bcall_addr, core.regs());
-            0
+            panic!("Unhandled bcall: {:04x} {:#?}", bcall_addr, core.regs());
         }
     }
 }
 
 pub fn test_flag(emu: &Emulator, core: &Z80, byte: u8, bit: u8) -> bool {
-    (emu.mem
-        .get(core.regs().iy.wrapping_add(byte as u16))
-        .unwrap_or(0)
-        & (1 << bit))
-        != 0
+    (emu.mem[core.regs().iy.wrapping_add(byte as u16)] & (1 << bit)) != 0
 }

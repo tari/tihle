@@ -1283,6 +1283,7 @@ INSTRUCTION(ED);
 INSTRUCTION(FD);
 INSTRUCTION(XY_CB);
 INSTRUCTION(ED_illegal);
+INSTRUCTION(ED_tihle_trap);
 INSTRUCTION(XY_illegal);
 
 
@@ -1372,7 +1373,7 @@ static Instruction const instruction_table_ED[256] = {
 /*	0	    1		2	    3		 4	     5		 6	     7		 8	     9		 A	     B		  C	      D		  E	      F */
 /* 0 */ ED_illegal, ED_illegal, ED_illegal, ED_illegal,	 ED_illegal, ED_illegal, ED_illegal, ED_illegal, ED_illegal, ED_illegal, ED_illegal, ED_illegal,  ED_illegal, ED_illegal, ED_illegal, ED_illegal,
 /* 1 */ ED_illegal, ED_illegal, ED_illegal, ED_illegal,	 ED_illegal, ED_illegal, ED_illegal, ED_illegal, ED_illegal, ED_illegal, ED_illegal, ED_illegal,  ED_illegal, ED_illegal, ED_illegal, ED_illegal,
-/* 2 */ ED_illegal, ED_illegal, ED_illegal, ED_illegal,	 ED_illegal, ED_illegal, ED_illegal, ED_illegal, ED_illegal, ED_illegal, ED_illegal, ED_illegal,  ED_illegal, ED_illegal, ED_illegal, ED_illegal,
+/* 2 */ ED_illegal, ED_illegal, ED_illegal, ED_illegal,	 ED_illegal, ED_tihle_trap, ED_illegal, ED_illegal, ED_illegal, ED_illegal, ED_illegal, ED_illegal,  ED_illegal, ED_illegal, ED_illegal, ED_illegal,
 /* 3 */ ED_illegal, ED_illegal, ED_illegal, ED_illegal,	 ED_illegal, ED_illegal, ED_illegal, ED_illegal, ED_illegal, ED_illegal, ED_illegal, ED_illegal,  ED_illegal, ED_illegal, ED_illegal, ED_illegal,
 /* 4 */ in_X_vc,    out_vc_X,	sbc_hl_SS,  ld_vWORD_SS, neg,	     retn,	 im_0,	     ld_i_a,	 in_X_vc,    out_vc_X,	 adc_hl_SS,  ld_SS_vWORD, neg,	      reti,	  im_0,	      ld_r_a,
 /* 5 */ in_X_vc,    out_vc_X,	sbc_hl_SS,  ld_vWORD_SS, neg,	     retn,	 im_1,	     ld_a_i,	 in_X_vc,    out_vc_X,	 adc_hl_SS,  ld_SS_vWORD, neg,	      retn,	  im_2,	      ld_a_r,
@@ -1420,6 +1421,14 @@ INSTRUCTION(XY_CB)
 INSTRUCTION(XY_illegal) {PC += 1; return instruction_table[BYTE0 = BYTE1](object) + 4;}
 INSTRUCTION(ED_illegal) {PC += 2; return 8;}
 
+
+/* MARK: - Trap Instruction */
+INSTRUCTION(ED_tihle_trap) {
+  PC += 4;
+  uint16_t trap_no = (READ_8(PC - 2) | (READ_8(PC - 1) << 8));
+  CYCLES += object->trap(object->context, trap_no);
+  return 0;
+}
 
 /* MARK: - Main Functions */
 

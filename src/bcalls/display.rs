@@ -27,7 +27,7 @@ pub fn PutS(emu: &mut Emulator, cpu: &Z80) -> usize {
     let mut len = 0;
 
     loop {
-        let c = emu.mem.get(addr).unwrap_or(0);
+        let c = emu.mem[addr];
         if c == 0 {
             break;
         }
@@ -117,7 +117,8 @@ fn put_char_small(emu: &mut Emulator, c: u8, col: u8, row: u8) -> u8 {
     let bitmap_index = 6 * c as usize;
     let width = SMALL_FONT_WIDTHS[c as usize];
 
-    emu.display.blit_8bit_over(col, row, &SMALL_FONT[bitmap_index..bitmap_index+6], width);
+    emu.display
+        .blit_8bit_over(col, row, &SMALL_FONT[bitmap_index..bitmap_index + 6], width);
     width
 }
 
@@ -145,7 +146,12 @@ pub fn VPutS(emu: &mut Emulator, core: &mut Z80) -> usize {
 
 pub fn VPutMap(emu: &mut Emulator, core: &mut Z80) -> usize {
     // TODO handle textInverse, textEraseBelow, textWrite and fracDrawLFont flags
-    put_char_small(emu, core.regs().get_a(), emu.mem[tios::penCol], emu.mem[tios::penRow]);
+    put_char_small(
+        emu,
+        core.regs().get_a(),
+        emu.mem[tios::penCol],
+        emu.mem[tios::penRow],
+    );
     VPUTC_TIME
 }
 
@@ -154,4 +160,3 @@ const VPUTC_TIME: usize = 400;
 // Small font is variable-width, 6 pixels tall
 static SMALL_FONT: &[u8] = include_bytes!("smlfont.bin");
 static SMALL_FONT_WIDTHS: &[u8] = include_bytes!("smlfont_widths.bin");
-

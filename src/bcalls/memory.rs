@@ -8,7 +8,7 @@ pub fn MemSet(emu: &mut Emulator, core: &mut Z80) -> usize {
     let value = core.regs().get_a();
 
     for ofs in 0..sz {
-        emu.mem.put(ptr.wrapping_add(ofs), value);
+        let _ = emu.mem.put(ptr.wrapping_add(ofs), value);
     }
     sz as usize * 16
 }

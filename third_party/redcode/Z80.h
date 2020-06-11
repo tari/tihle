@@ -95,6 +95,13 @@ typedef struct {
 
 	void (* halt)(void *context, zboolean state);
 
+	/** Callback: called when the CPU executes a trap instruction.
+	 * @param context The value of the member @c context.
+	 * @param trap_no The ID of the trap executed (the 16-bit value
+	 * specified in the instruction). */
+
+	zusize (* trap)(void *context, zuint16 trap_no);
+
 	/** CPU registers and internal bits.
 	  * @details It contains the state of the registers, as well as the
 	  * interrupt flip-flops, variables related to interrupts and other

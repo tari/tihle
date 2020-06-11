@@ -167,7 +167,7 @@ impl Display {
         let col = x as usize;
 
         // Do nothing if offscreen
-        if col > Self::COLS || row > Self::ROWS{
+        if col > Self::COLS || row > Self::ROWS {
             return;
         }
 
@@ -196,7 +196,7 @@ impl Display {
             0x00 => {
                 self.word_mode = WordMode::Bit6;
                 self.clamp_y_addr();
-            },
+            }
             0x01 => {
                 self.word_mode = WordMode::Bit8;
             }
@@ -289,14 +289,19 @@ impl Display {
 
         let bytes = expand_byte(data).to_be_bytes();
         // Drop LSbs of 6-bit word
-        let bytes_write = &bytes[8-word_size..];
+        let bytes_write = &bytes[8 - word_size..];
         // Copy bits to buffer
         let buf_start = (self.addr_x as usize * Self::COLS) + (self.addr_y as usize * word_size);
         for (dst, &src) in self.buf[buf_start..].iter_mut().zip(bytes_write.iter()) {
             *dst = src;
         }
 
-        trace!("LCD data write {:02X} to ({},{})", data, self.addr_y, self.addr_x);
+        trace!(
+            "LCD data write {:02X} to ({},{})",
+            data,
+            self.addr_y,
+            self.addr_x
+        );
         self.do_autoaddressing();
     }
 
@@ -310,13 +315,22 @@ impl Display {
             // Copy bytes from the display buffer into a local array, right-aligning within
             // the current word size.
             let mut bytes = [0u8; 8];
-            let buf_start = (Self::ROWS * self.addr_x as usize) + (word_size * self.addr_y as usize);
-            for (dst, &src) in bytes[8 - word_size..].iter_mut().zip(self.buf[buf_start..].iter()) {
+            let buf_start =
+                (Self::ROWS * self.addr_x as usize) + (word_size * self.addr_y as usize);
+            for (dst, &src) in bytes[8 - word_size..]
+                .iter_mut()
+                .zip(self.buf[buf_start..].iter())
+            {
                 *dst = src;
             }
             // Pack the array into a byte to return
             let out = pack_byte(u64::from_be_bytes(bytes));
-            trace!("LCD data read at ({},{}) => {:02X}", self.addr_y, self.addr_x, out);
+            trace!(
+                "LCD data read at ({},{}) => {:02X}",
+                self.addr_y,
+                self.addr_x,
+                out
+            );
             out
         };
 

@@ -1,5 +1,5 @@
-use bitflags::bitflags;
 use crate::Emulator;
+use bitflags::bitflags;
 use std::ffi::c_void;
 use std::ptr;
 
@@ -34,6 +34,7 @@ impl Z80 {
                 port_out: Some(Self::handle_io_write),
                 int_data: Some(Self::handle_mode0_vector),
                 halt: Some(Self::handle_halt),
+                trap: Some(Self::handle_trap),
                 ..ffi::Z80::new()
             },
         };
@@ -85,6 +86,11 @@ impl Z80 {
         emu.wait_for_interrupt(core);
     }
 
+    extern "C" fn handle_trap(ctx: ffi::Ctx, trap_no: u16) -> usize {
+        let (core, emu) = unsafe { Self::ctx_from_ptr(ctx) };
+        emu.trap(trap_no, core)
+    }
+
     #[cold]
     extern "C" fn handle_mode0_vector(_ctx: ffi::Ctx) -> u32 {
         0
@@ -117,9 +123,7 @@ impl Z80 {
     }
 
     pub fn flags(&self) -> Flags {
-        unsafe {
-            Flags::from_bits_unchecked(self.regs().af as u8)
-        }
+        unsafe { Flags::from_bits_unchecked(self.regs().af as u8) }
     }
 
     pub fn set_flags(&mut self, flags: Flags) {

@@ -142,6 +142,7 @@ pub struct Z80 {
     pub port_out: Option<extern "C" fn(context: Ctx, port: u16, value: u8)>,
     pub int_data: Option<extern "C" fn(context: Ctx) -> u32>,
     pub halt: Option<extern "C" fn(context: Ctx, state: u8)>,
+    pub trap: Option<extern "C" fn(context: Ctx, trap_no: u16) -> usize>,
     pub regs: State,
 
     // Internal fields below

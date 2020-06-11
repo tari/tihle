@@ -1,59 +1,54 @@
 use std::ops::Range;
 
 pub struct Memory {
+    page0: [u8; 0x4000],
+    bank_a: [u8; 0x4000],
     ram: [u8; 0x8000],
-    // Only supports one page for now
-    flash: [u8; 0x4000],
 }
 
-const RAM_ADDRS: std::ops::RangeInclusive<u16> = 0x8000..=0xFFFF;
+const PAGE0_ADDRS: std::ops::Range<u16> = 0..0x4000;
 const BANKA_ADDRS: std::ops::Range<u16> = 0x4000..0x8000;
+const RAM_ADDRS: std::ops::RangeInclusive<u16> = 0x8000..=0xFFFF;
 
 impl Memory {
-    pub fn new(flash_contents: &[u8]) -> Self {
-        let mut flash = [0; 0x4000];
-        flash[..flash_contents.len()].copy_from_slice(flash_contents);
+    pub fn new(page_0_contents: &[u8], bank_a_contents: &[u8]) -> Self {
+        let mut page0 = [0; 0x4000];
+        page0[..page_0_contents.len()].copy_from_slice(page_0_contents);
+
+        let mut bank_a = [0; 0x4000];
+        bank_a[..bank_a_contents.len()].copy_from_slice(bank_a_contents);
+
         Memory {
+            page0,
+            bank_a,
             ram: [0; 0x8000],
-            flash,
         }
     }
 
     #[inline]
     pub fn read_u16(&mut self, addr: u16) -> u16 {
-        if RAM_ADDRS.contains(&addr) || BANKA_ADDRS.contains(&addr) {
-            (self[addr] as u16) | ((self[addr + 1] as u16) << 8)
-        } else {
-            panic!("Attempted to read unmapped memory at {:04X}", addr);
-        }
+        (self[addr] as u16) | ((self[addr + 1] as u16) << 8)
     }
 
     #[inline]
     pub fn write_u16(&mut self, addr: u16, value: u16) {
-        if RAM_ADDRS.contains(&addr) || BANKA_ADDRS.contains(&addr) {
-            self[addr] = value as u8;
-            self[addr + 1] = (value >> 8) as u8;
-        } else {
-            panic!("Attempted to write unmapped memory at {:04X}", addr);
-        }
-
+        self[addr] = value as u8;
+        self[addr + 1] = (value >> 8) as u8;
     }
 
-    /// Checked memory read; returns None if `addr` is not in mapped memory.
-    pub fn get(&self, addr: u16) -> Option<u8> {
-        if RAM_ADDRS.contains(&addr) || BANKA_ADDRS.contains(&addr) {
-            Some(self[addr])
-        } else {
-            None
-        }
-    }
-
-    pub fn put(&mut self, addr: u16, value: u8) -> bool {
-        if RAM_ADDRS.contains(&addr) || BANKA_ADDRS.contains(&addr) {
+    /// Checked memory write.
+    ///
+    /// Fails if the given address refers to read-only memory.
+    pub fn put(&mut self, addr: u16, value: u8) -> Result<(), ()> {
+        if RAM_ADDRS.contains(&addr) {
             self[addr] = value;
-            false
+            Ok(())
         } else {
-            true
+            warn!(
+                "Ignored write of byte {:02X} to read-only memory at {:04X}",
+                value, addr
+            );
+            Err(())
         }
     }
 }
@@ -63,12 +58,14 @@ impl std::ops::Index<u16> for Memory {
 
     #[inline]
     fn index(&self, index: u16) -> &u8 {
-        if BANKA_ADDRS.contains(&index) {
-            &self.flash[(index - BANKA_ADDRS.start) as usize]
+        if PAGE0_ADDRS.contains(&index) {
+            &self.page0[(index - PAGE0_ADDRS.start) as usize]
+        } else if BANKA_ADDRS.contains(&index) {
+            &self.bank_a[(index - BANKA_ADDRS.start) as usize]
         } else if RAM_ADDRS.contains(&index) {
             &self.ram[(index - RAM_ADDRS.start()) as usize]
         } else {
-            panic!("Attempted index into unmapped memory");
+            unreachable!();
         }
     }
 }
@@ -76,12 +73,14 @@ impl std::ops::Index<u16> for Memory {
 impl std::ops::IndexMut<u16> for Memory {
     #[inline]
     fn index_mut(&mut self, index: u16) -> &mut u8 {
-        if BANKA_ADDRS.contains(&index) {
-            &mut self.flash[(index - BANKA_ADDRS.start) as usize]
+        if PAGE0_ADDRS.contains(&index) {
+            &mut self.page0[(index - PAGE0_ADDRS.start) as usize]
+        } else if BANKA_ADDRS.contains(&index) {
+            &mut self.bank_a[(index - BANKA_ADDRS.start) as usize]
         } else if RAM_ADDRS.contains(&index) {
             &mut self.ram[(index - RAM_ADDRS.start()) as usize]
         } else {
-            panic!("Attempted index into unmapped memory");
+            unreachable!();
         }
     }
 }
@@ -90,24 +89,40 @@ impl std::ops::Index<Range<u16>> for Memory {
     type Output = [u8];
 
     fn index(&self, index: Range<u16>) -> &[u8] {
-        if BANKA_ADDRS.contains(&index.start) && BANKA_ADDRS.contains(&index.end) {
-            &self.flash[(index.start - BANKA_ADDRS.start) as usize..(index.end - BANKA_ADDRS.start) as usize]
+        if PAGE0_ADDRS.contains(&index.start) && PAGE0_ADDRS.contains(&index.end) {
+            &self.page0[(index.start - PAGE0_ADDRS.start) as usize
+                ..(index.end - PAGE0_ADDRS.start) as usize]
+        } else if BANKA_ADDRS.contains(&index.start) && BANKA_ADDRS.contains(&index.end) {
+            &self.bank_a[(index.start - BANKA_ADDRS.start) as usize
+                ..(index.end - BANKA_ADDRS.start) as usize]
         } else if RAM_ADDRS.contains(&index.start) && RAM_ADDRS.contains(&index.end) {
-            &self.ram[(index.start - RAM_ADDRS.start()) as usize..(index.end - RAM_ADDRS.start()) as usize]
+            &self.ram[(index.start - RAM_ADDRS.start()) as usize
+                ..(index.end - RAM_ADDRS.start()) as usize]
         } else {
-            panic!("Attempted slice indexing of unmapped memory or spanning memories");
+            panic!(
+                "Attempted slice indexing of unmapped memory or spanning memories: {:?}",
+                index
+            );
         }
     }
 }
 
 impl std::ops::IndexMut<Range<u16>> for Memory {
     fn index_mut(&mut self, index: Range<u16>) -> &mut [u8] {
-        if BANKA_ADDRS.contains(&index.start) && BANKA_ADDRS.contains(&index.end) {
-            &mut self.flash[(index.start - BANKA_ADDRS.start) as usize..(index.end - BANKA_ADDRS.start) as usize]
+        if PAGE0_ADDRS.contains(&index.start) && PAGE0_ADDRS.contains(&index.end) {
+            &mut self.page0[(index.start - PAGE0_ADDRS.start) as usize
+                ..(index.end - PAGE0_ADDRS.start) as usize]
+        } else if BANKA_ADDRS.contains(&index.start) && BANKA_ADDRS.contains(&index.end) {
+            &mut self.bank_a[(index.start - BANKA_ADDRS.start) as usize
+                ..(index.end - BANKA_ADDRS.start) as usize]
         } else if RAM_ADDRS.contains(&index.start) && RAM_ADDRS.contains(&index.end) {
-            &mut self.ram[(index.start - RAM_ADDRS.start()) as usize..(index.end - RAM_ADDRS.start()) as usize]
+            &mut self.ram[(index.start - RAM_ADDRS.start()) as usize
+                ..(index.end - RAM_ADDRS.start()) as usize]
         } else {
-            panic!("Attempted slice indexing of unmapped memory or spanning memories");
+            panic!(
+                "Attempted slice indexing of unmapped memory or spanning memories: {:?}",
+                index
+            );
         }
     }
 }
