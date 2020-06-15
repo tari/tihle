@@ -1,5 +1,6 @@
 //! The interrupt scheduler
 
+use bitflags::bitflags;
 use std::time::{Duration, Instant};
 
 /// Handles interrupts for the 83+.
@@ -33,6 +34,7 @@ use std::time::{Duration, Instant};
 /// ## Implementation
 ///
 /// Only the ON key and timer1 are currently implemented.
+#[derive(Debug)]
 pub struct InterruptController {
     /// Timer 1 is normally enabled at about 120 Hz.
     timer1_period: Duration,
@@ -81,7 +83,7 @@ impl InterruptController {
             self.timer1_last = now;
         }
 
-        let pending = self.timer1_pending || self.on_pending;
+        let pending = (self.timer1_pending && self.timer1_enabled) || (self.on_pending && self.on_enabled);
         let next = if self.timer1_enabled {
             // last + period if it's not in the past, otherwise now + period
             // as a lower bound for the next one.
@@ -94,6 +96,54 @@ impl InterruptController {
             None
         };
 
+        trace!("Interrupt controller polled: IRQ pending={}, next timer in {:?}", pending, next);
         (pending, next)
+    }
+
+    /// Read port 3, returning the enable status of interrupts.
+    pub fn read_mask_port(&self) -> u8 {
+        let mut out = InterruptFlags::empty();
+        if self.on_enabled {
+            out |= InterruptFlags::ON;
+        }
+        if self.timer1_enabled {
+            out |= InterruptFlags::TIMER1;
+        }
+
+        out.bits()
+    }
+
+    /// Write port 3, setting the enable status (and pending flags).
+    pub fn write_mask_port(&mut self, value: u8) {
+        let value = InterruptFlags::from_bits_truncate(value);
+
+        self.on_enabled = value.contains(InterruptFlags::ON);
+        self.on_pending &= self.on_enabled;
+
+        self.timer1_enabled = value.contains(InterruptFlags::TIMER1);
+        self.timer1_pending &= self.timer1_enabled;
+        trace!("Wrote port 3; timer1 enabled={} pending={}", self.timer1_enabled, self.timer1_pending);
+    }
+
+    // Read port 4, getting the pending flags.
+    pub fn read_status_port(&mut self) -> u8 {
+        let mut out = InterruptFlags::empty();
+        if self.on_pending {
+            out |= InterruptFlags::ON;
+        }
+        if self.timer1_pending {
+            out |= InterruptFlags::TIMER1;
+        }
+
+        out.bits()
+    }
+}
+
+bitflags!{
+    struct InterruptFlags: u8 {
+        const ON = 0x01;
+        const TIMER1 = 0x02;
+        const TIMER2 = 0x04;
+        const LINKPORT = 0x10;
     }
 }

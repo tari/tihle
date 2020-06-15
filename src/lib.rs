@@ -293,18 +293,19 @@ impl Emulator {
         unimplemented!()
     }
 
-    fn write_io(&mut self, _core: &mut Z80, port: u8, value: u8) {
+    fn write_io(&mut self, cpu: &mut Z80, port: u8, value: u8) {
         match port {
-            0x10 => {
-                self.display.write_control(value);
-            }
-            0x11 => {
-                self.display.write_data(value);
-            }
-            0xFF if self.is_running() => {
-                info!("Got write to port 255; terminating emulation");
-                self.terminate.set(true);
-            }
+            0x03 => {
+                self.interrupt_controller.write_mask_port(value);
+                // TODO since this can affect scheduling, we should actually force
+                // the CPU to yield so we can run until the next interrupt that may
+                // be sooner than originally thought.
+                let (pending, _) = self.interrupt_controller.poll();
+                debug!("Port 3 write {:02X} sets IRQ={}", value, pending);
+                cpu.set_irq(pending);
+            },
+            0x10 => self.display.write_control(value),
+            0x11 => self.display.write_data(value),
             _ => {
                 warn!(
                     "Unhandled port write to {:#04x} (value={:#04x})",
@@ -316,6 +317,8 @@ impl Emulator {
 
     fn read_io(&mut self, _core: &mut Z80, port: u8) -> u8 {
         match port {
+            0x03 => self.interrupt_controller.read_mask_port(),
+            0x04 => self.interrupt_controller.read_status_port(),
             0x10 => self.display.read_status(),
             0x11 => self.display.read_data(),
             _ => {
