@@ -103,6 +103,11 @@ impl<'a> Video<'a> {
             .expect("Failed to copy texture to window");
         self.canvas.present();
     }
+
+    fn show_speed(&mut self, _effective_speed: f32) {
+        self.canvas.window_mut().set_title(&format!("tihle ({:?}%)", unimplemented!()))
+            .unwrap();
+    }
 }
 
 fn main() {
