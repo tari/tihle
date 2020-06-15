@@ -9,6 +9,7 @@ build = "build.rs"
 
 [[bin]]
 name = "tihle"
+# Also consider enabling log/release_max_level_info for release builds
 required-features = ["sdl"]
 
 [profile.release]
@@ -21,11 +22,11 @@ sdl = ["sdl2"]
 [dependencies]
 arr_macro = "0.1.3"
 bitflags = "1.0"
+env_logger = "0.7.1"
 log = "0.4.8"
 num-derive = "0.3"
 num-traits = "0.2"
 sdl2 = { version = "0.34", optional = true }
-simple_logger = "1.6"
 
 [build-dependencies]
 cc = "1.0"

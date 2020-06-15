@@ -106,7 +106,7 @@ impl<'a> Video<'a> {
 }
 
 fn main() {
-    simple_logger::init_by_env();
+    env_logger::init();
 
     let args = std::env::args().collect::<Vec<String>>();
     if args.len() != 2 {
