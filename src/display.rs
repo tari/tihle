@@ -23,6 +23,7 @@ pub struct Display {
     addr_y: u8,
 }
 
+#[derive(Debug)]
 enum AutoAddressMode {
     DecrementX,
     IncrementX,
@@ -30,12 +31,14 @@ enum AutoAddressMode {
     IncrementY,
 }
 
+#[derive(Debug)]
 enum WordMode {
     Bit6,
     Bit8,
 }
 
 impl WordMode {
+    /// Get the maximum Y address (inclusive) for the current word size.
     fn max_y_addr(&self) -> u8 {
         match *self {
             WordMode::Bit6 => 19,
@@ -62,8 +65,9 @@ impl Display {
     pub fn new() -> Self {
         Display {
             buf: [0; Self::ROWS * Self::COLS],
-            auto_address_mode: AutoAddressMode::IncrementY,
-            word_mode: WordMode::Bit6,
+            // TI-OS uses X-increment mode and leaves the LCD in 8-bit mode
+            auto_address_mode: AutoAddressMode::IncrementX,
+            word_mode: WordMode::Bit8,
             address_update_pending: true,
             addr_x: 0,
             addr_y: 0,
@@ -213,14 +217,16 @@ impl Display {
                 self.auto_address_mode = AutoAddressMode::IncrementY;
             }
             y if y & 0xE0 == 0x20 => {
-                // Set y address, clamping to the largest valid address in the current mode
-                self.addr_y = std::cmp::min(y & 0x1F, self.word_mode.max_y_addr());
+                self.addr_y = y & 0x1F;
+                self.clamp_y_addr();
                 wrote_addr = true;
+                debug!("Set LCD Y addr = {}", self.addr_y);
             }
             x if x & 0xC0 == 0x80 => {
                 // Set x address
                 self.addr_x = x & 0x3F;
                 wrote_addr = true;
+                debug!("Set LCD X addr = {}", self.addr_x);
             }
             unimp => {
                 warn!("Unimplemented LCD command {:#04x}", unimp);
@@ -262,28 +268,38 @@ impl Display {
     /// Update X and Y addresses based on the current mode.
     fn do_autoaddressing(&mut self) {
         use AutoAddressMode::*;
-        let max_x = 63;
         let max_y = self.word_mode.max_y_addr();
         match self.auto_address_mode {
             IncrementY => {
-                self.addr_y = (self.addr_y + 1) % max_y;
+                self.addr_y = (self.addr_y + 1) % (max_y + 1);
             }
             DecrementY => {
-                self.addr_y = std::cmp::min(self.addr_y.wrapping_sub(1), max_y);
+                self.addr_y = self.addr_y.wrapping_sub(1);
+                self.clamp_y_addr();
             }
             IncrementX => {
-                self.addr_x = (self.addr_x + 1) % max_x;
+                self.addr_x = (self.addr_x + 1) % Self::ROWS as u8;
             }
             DecrementX => {
-                self.addr_x = std::cmp::min(self.addr_x.wrapping_sub(1), max_x);
+                self.addr_x = std::cmp::min(self.addr_x.wrapping_sub(1), Self::ROWS as u8 - 1);
             }
         };
     }
 
     pub fn write_data(&mut self, data: u8) {
+        debug!(
+            "LCD data write {:02X} to ({},{}) {:?} {:?}",
+            data,
+            self.addr_y,
+            self.addr_x,
+            self.word_mode,
+            self.auto_address_mode,
+        );
+
         let word_size = self.word_mode.word_size();
         if self.addr_y as usize * word_size >= Self::COLS {
             // Ignore writes outside the screen
+            self.do_autoaddressing();
             return;
         }
 
@@ -296,12 +312,6 @@ impl Display {
             *dst = src;
         }
 
-        trace!(
-            "LCD data write {:02X} to ({},{})",
-            data,
-            self.addr_y,
-            self.addr_x
-        );
         self.do_autoaddressing();
     }
 
@@ -316,7 +326,7 @@ impl Display {
             // the current word size.
             let mut bytes = [0u8; 8];
             let buf_start =
-                (Self::ROWS * self.addr_x as usize) + (word_size * self.addr_y as usize);
+                (Self::COLS * self.addr_x as usize) + (word_size * self.addr_y as usize);
             for (dst, &src) in bytes[8 - word_size..]
                 .iter_mut()
                 .zip(self.buf[buf_start..].iter())
@@ -325,12 +335,15 @@ impl Display {
             }
             // Pack the array into a byte to return
             let out = pack_byte(u64::from_be_bytes(bytes));
-            trace!(
-                "LCD data read at ({},{}) => {:02X}",
+            debug!(
+                "LCD data read {:02X} from ({},{}) {:?} {:?}",
+                out,
                 self.addr_y,
                 self.addr_x,
-                out
+                self.word_mode,
+                self.auto_address_mode,
             );
+
             out
         };
 
@@ -380,5 +393,10 @@ mod tests {
             let actual = expanded[bit];
             assert_eq!(expected, actual, "Expanded {:08b} -> {:?}", x, expanded);
         }
+    }
+
+    #[quickcheck]
+    fn expand_then_pack_is_lossless(x: u8) {
+        assert_eq!(x, super::pack_byte(super::expand_byte(x)));
     }
 }
