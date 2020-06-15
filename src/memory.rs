@@ -1,9 +1,13 @@
 use std::ops::Range;
 
+/// Number of flash pages that exist. Must be a power of two.
+const FLASH_PAGES: u8 = 0x20;
+
 pub struct Memory {
-    page0: [u8; 0x4000],
-    bank_a: [u8; 0x4000],
+    flash: Box<[[u8; 0x4000]]>,
     ram: [u8; 0x8000],
+    // Page currently mapped into memory bank A
+    bank_a_page: u8,
 }
 
 const PAGE0_ADDRS: std::ops::Range<u16> = 0..0x4000;
@@ -11,22 +15,22 @@ const BANKA_ADDRS: std::ops::Range<u16> = 0x4000..0x8000;
 const RAM_ADDRS: std::ops::RangeInclusive<u16> = 0x8000..=0xFFFF;
 
 impl Memory {
-    pub fn new(page_0_contents: &[u8], bank_a_contents: &[u8]) -> Self {
-        let mut page0 = [0; 0x4000];
-        page0[..page_0_contents.len()].copy_from_slice(page_0_contents);
-
-        let mut bank_a = [0; 0x4000];
-        bank_a[..bank_a_contents.len()].copy_from_slice(bank_a_contents);
+    pub fn new<'i, I: 'i + IntoIterator<Item = &'i (u8, &'i [u8])>>(flash_pages: I) -> Self {
+        let mut flash: Box<_> =
+            vec![[0u8; 0x4000]; FLASH_PAGES as usize].into_boxed_slice();
+        for (page, contents) in flash_pages {
+            flash[*page as usize][..contents.len()].copy_from_slice(contents);
+        }
 
         Memory {
-            page0,
-            bank_a,
+            flash,
             ram: [0; 0x8000],
+            bank_a_page: 0,
         }
     }
 
     #[inline]
-    pub fn read_u16(&mut self, addr: u16) -> u16 {
+    pub fn read_u16(&self, addr: u16) -> u16 {
         (self[addr] as u16) | ((self[addr + 1] as u16) << 8)
     }
 
@@ -34,6 +38,18 @@ impl Memory {
     pub fn write_u16(&mut self, addr: u16, value: u16) {
         self[addr] = value as u8;
         self[addr + 1] = (value >> 8) as u8;
+    }
+
+    pub fn read_paged(&self, page: u8, addr: u16) -> u8 {
+        assert!(
+            BANKA_ADDRS.contains(&addr),
+            "Paged read must refer to addresses in memory bank A"
+        );
+        self.flash[page as usize][(addr - BANKA_ADDRS.start) as usize]
+    }
+
+    pub fn read_u16_paged(&self, page: u8, addr: u16) -> u16 {
+        (self.read_paged(page, addr) as u16) | ((self.read_paged(page, addr + 1) as u16) << 8)
     }
 
     /// Checked memory write.
@@ -51,6 +67,15 @@ impl Memory {
             Err(())
         }
     }
+
+    pub fn get_bank_a_page(&self) -> u8 {
+        self.bank_a_page
+    }
+
+    pub fn set_bank_a_page(&mut self, value: u8) {
+        assert!(FLASH_PAGES.is_power_of_two());
+        self.bank_a_page = value & (FLASH_PAGES - 1)
+    }
 }
 
 impl std::ops::Index<u16> for Memory {
@@ -59,9 +84,9 @@ impl std::ops::Index<u16> for Memory {
     #[inline]
     fn index(&self, index: u16) -> &u8 {
         if PAGE0_ADDRS.contains(&index) {
-            &self.page0[(index - PAGE0_ADDRS.start) as usize]
+            &self.flash[0][(index - PAGE0_ADDRS.start) as usize]
         } else if BANKA_ADDRS.contains(&index) {
-            &self.bank_a[(index - BANKA_ADDRS.start) as usize]
+            &self.flash[self.bank_a_page as usize][(index - BANKA_ADDRS.start) as usize]
         } else if RAM_ADDRS.contains(&index) {
             &self.ram[(index - RAM_ADDRS.start()) as usize]
         } else {
@@ -74,9 +99,9 @@ impl std::ops::IndexMut<u16> for Memory {
     #[inline]
     fn index_mut(&mut self, index: u16) -> &mut u8 {
         if PAGE0_ADDRS.contains(&index) {
-            &mut self.page0[(index - PAGE0_ADDRS.start) as usize]
+            &mut self.flash[0][(index - PAGE0_ADDRS.start) as usize]
         } else if BANKA_ADDRS.contains(&index) {
-            &mut self.bank_a[(index - BANKA_ADDRS.start) as usize]
+            &mut self.flash[self.bank_a_page as usize][(index - BANKA_ADDRS.start) as usize]
         } else if RAM_ADDRS.contains(&index) {
             &mut self.ram[(index - RAM_ADDRS.start()) as usize]
         } else {
@@ -90,10 +115,10 @@ impl std::ops::Index<Range<u16>> for Memory {
 
     fn index(&self, index: Range<u16>) -> &[u8] {
         if PAGE0_ADDRS.contains(&index.start) && PAGE0_ADDRS.contains(&index.end) {
-            &self.page0[(index.start - PAGE0_ADDRS.start) as usize
+            &self.flash[0][(index.start - PAGE0_ADDRS.start) as usize
                 ..(index.end - PAGE0_ADDRS.start) as usize]
         } else if BANKA_ADDRS.contains(&index.start) && BANKA_ADDRS.contains(&index.end) {
-            &self.bank_a[(index.start - BANKA_ADDRS.start) as usize
+            &self.flash[self.bank_a_page as usize][(index.start - BANKA_ADDRS.start) as usize
                 ..(index.end - BANKA_ADDRS.start) as usize]
         } else if RAM_ADDRS.contains(&index.start) && RAM_ADDRS.contains(&index.end) {
             &self.ram[(index.start - RAM_ADDRS.start()) as usize
@@ -110,10 +135,10 @@ impl std::ops::Index<Range<u16>> for Memory {
 impl std::ops::IndexMut<Range<u16>> for Memory {
     fn index_mut(&mut self, index: Range<u16>) -> &mut [u8] {
         if PAGE0_ADDRS.contains(&index.start) && PAGE0_ADDRS.contains(&index.end) {
-            &mut self.page0[(index.start - PAGE0_ADDRS.start) as usize
+            &mut self.flash[0][(index.start - PAGE0_ADDRS.start) as usize
                 ..(index.end - PAGE0_ADDRS.start) as usize]
         } else if BANKA_ADDRS.contains(&index.start) && BANKA_ADDRS.contains(&index.end) {
-            &mut self.bank_a[(index.start - BANKA_ADDRS.start) as usize
+            &mut self.flash[self.bank_a_page as usize][(index.start - BANKA_ADDRS.start) as usize
                 ..(index.end - BANKA_ADDRS.start) as usize]
         } else if RAM_ADDRS.contains(&index.start) && RAM_ADDRS.contains(&index.end) {
             &mut self.ram[(index.start - RAM_ADDRS.start()) as usize

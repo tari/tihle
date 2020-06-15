@@ -77,7 +77,6 @@ mod checksum;
 pub mod display;
 mod interrupt;
 pub mod memory;
-mod shells;
 mod tifiles;
 mod traps;
 pub mod z80;
@@ -103,13 +102,18 @@ pub struct Emulator {
     terminate: Cell<bool>,
 }
 
-static PAGE_ZERO: &[u8; 0x4000] = include_bytes!("../os.bin");
+static FLASH_IMAGE: &[(u8, &[u8])] = &[
+    (0, include_bytes!("../os/page00.bin")),
+    (1, include_bytes!("../os/page01.bin")),
+    (0x1B, include_bytes!("../os/page1b.bin")),
+    (4, include_bytes!("mirageos.bin")),
+];
 
 impl Emulator {
     pub fn new() -> Self {
         Emulator {
             clock_rate: 6_000_000,
-            mem: Memory::new(PAGE_ZERO, shells::MIRAGEOS_IMAGE),
+            mem: Memory::new(FLASH_IMAGE),
             interrupt_controller: InterruptController::new(),
             display: display::Display::new(),
 
@@ -148,14 +152,11 @@ impl Emulator {
         }
 
         let (irq_pending, until_next_interrupt) = self.interrupt_controller.poll();
-        trace!(
+        debug!(
             "IRQ pending: {}; next interrupt: {:?}",
             irq_pending,
             until_next_interrupt
         );
-        if irq_pending {
-            info!("Setting IRQ line high to service interrupt");
-        }
         cpu.set_irq(irq_pending);
 
         // Run the CPU for a frame or until the next interrupt,
@@ -254,6 +255,8 @@ impl Emulator {
         }
 
         self.setup_tios_context(cpu);
+        // Map Mirage into bank A
+        self.mem.set_bank_a_page(4);
 
         Ok(var)
     }
@@ -272,7 +275,7 @@ impl Emulator {
     }
 
     #[inline]
-    fn read_memory(&mut self, core: &mut Z80, addr: u16) -> u8 {
+    fn read_memory(&mut self, _core: &mut Z80, addr: u16) -> u8 {
         let byte = self.mem[addr];
         trace!("Memory read {:04X} -> {:02X}", addr, byte);
         byte
@@ -326,7 +329,7 @@ impl Emulator {
         if let Some(trap) = traps::Trap::from_u16(trap_no) {
             trap.handle(self, core)
         } else {
-            panic!("Unrecognized trap: {}", trap_no);
+            panic!("Unrecognized trap: {:04X}", trap_no);
         }
     }
 }

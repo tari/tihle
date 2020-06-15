@@ -1,9 +1,9 @@
 #![allow(non_snake_case)]
 
-use crate::bcalls::test_flag;
 use crate::display::ScrollDirection;
 use crate::include::tios;
-use crate::{Emulator, Z80};
+use crate::{Emulator, Z80, Flags};
+use super::test_flag;
 
 pub fn HomeUp(emu: &mut Emulator) -> usize {
     emu.mem[tios::curCol] = 0;
@@ -22,24 +22,6 @@ pub fn GrBufCpy(emu: &mut Emulator) -> usize {
     60000 //  Slower than ionFastCopy
 }
 
-pub fn PutS(emu: &mut Emulator, cpu: &Z80) -> usize {
-    let mut addr = cpu.regs().hl;
-    let mut len = 0;
-
-    loop {
-        let c = emu.mem[addr];
-        if c == 0 {
-            break;
-        }
-
-        put_char_scrolling(emu, cpu, c);
-        addr = addr.wrapping_add(1);
-        len += 1;
-    }
-
-    PUTC_TIME * len
-}
-
 pub fn PutC(emu: &mut Emulator, cpu: &Z80) -> usize {
     put_char_scrolling(emu, cpu, cpu.regs().get_a());
     PUTC_TIME
@@ -49,8 +31,8 @@ pub fn PutMap(emu: &mut Emulator, cpu: &Z80) -> usize {
     put_char(
         emu,
         cpu.regs().get_a(),
-        emu.mem[tios::curRow],
         emu.mem[tios::curCol],
+        emu.mem[tios::curRow],
     );
     PUTC_TIME
 }
@@ -122,36 +104,24 @@ fn put_char_small(emu: &mut Emulator, c: u8, col: u8, row: u8) -> u8 {
     width
 }
 
-pub fn VPutS(emu: &mut Emulator, core: &mut Z80) -> usize {
-    let mut n_chars = 0;
-    let mut ptr = core.regs().hl;
-    let mut x = emu.mem[tios::penCol];
-    let y = emu.mem[tios::penRow];
-
-    loop {
-        let c = emu.mem[ptr];
-        if c == 0 {
-            break;
-        }
-
-        let width = put_char_small(emu, c, x, y);
-        x = std::cmp::min(96, x + width);
-        ptr += 1;
-        n_chars += 1;
-    }
-
-    emu.mem[tios::penCol] = x;
-    VPUTC_TIME * n_chars
-}
-
 pub fn VPutMap(emu: &mut Emulator, core: &mut Z80) -> usize {
     // TODO handle textInverse, textEraseBelow, textWrite and fracDrawLFont flags
-    put_char_small(
+    let mut x = emu.mem[tios::penCol];
+    let width = put_char_small(
         emu,
         core.regs().get_a(),
-        emu.mem[tios::penCol],
+        x,
         emu.mem[tios::penRow],
     );
+
+    x = x.wrapping_add(width);
+    emu.mem[tios::penCol] = x;
+    // Set carry if we've gone offscren
+    if x >= 96 {
+        core.set_flags(core.flags() | Flags::C);
+    } else {
+        core.set_flags(core.flags() - Flags::C);
+    }
     VPUTC_TIME
 }
 
