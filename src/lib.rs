@@ -275,7 +275,9 @@ impl Emulator {
         // IY points to flags
         regs.iy = tios::flags;
 
-        // TODO we may need to set up the VAT and other things for Mirage.
+        // The VAT is empty
+        self.mem.write_u16(tios::progPtr, tios::symTable);
+        self.mem.write_u16(tios::pTemp, tios::symTable);
     }
 
     #[inline]
