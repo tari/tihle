@@ -22,7 +22,11 @@ pub fn bcall_trap(emu: &mut Emulator, core: &mut Z80) -> usize {
     let target_addr = emu.mem.read_u16_paged(VECTOR_TABLE_PAGE, bcall_addr + 1);
 
     if target_page == 0 && target_addr == 0 {
-        error!("Unimplemented bcall: {:04X} {:#?}", bcall_addr, regs);
+        if cfg!(debug_assertions) {
+            panic!("Unimplemented bcall: {:04X} {:#?}", bcall_addr, regs);
+        } else {
+            error!("Unimplemented bcall: {:04X} {:#?}", bcall_addr, regs);
+        }
         // Return immediately
         regs.pc = emu.mem.read_u16(regs.sp);
         regs.sp += 2;
