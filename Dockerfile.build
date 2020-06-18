@@ -1,0 +1,7 @@
+FROM rust:stretch AS build-spasm
+
+RUN git clone --depth=1 https://github.com/alberthdev/spasm-ng.git
+RUN cd spasm-ng && make -j$(nproc) && cp spasm /usr/local/bin
+
+FROM rust:stretch
+COPY --from=build-spasm /usr/local/bin/spasm /usr/local/bin/
