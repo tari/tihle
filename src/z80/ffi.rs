@@ -52,6 +52,10 @@ impl State {
     pub fn get_a(&self) -> u8 {
         (self.af >> 8) as u8
     }
+
+    pub fn set_a(&mut self, value: u8) {
+        self.af = (self.af & 0xFF) | ((value as u16) << 8);
+    }
 }
 
 impl std::fmt::Debug for State {

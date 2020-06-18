@@ -11,5 +11,6 @@
 #define TRAP_BCALL 1
 #define TRAP_BCALL_RETURN 2
 #define TRAP_OS_INTERRUPT 3
+#define TRAP_PRINT_CPU_STATE $FFFF
 
 .list

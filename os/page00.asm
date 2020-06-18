@@ -1,7 +1,10 @@
+.nolist
 #include "tihle-os.inc"
+#include "ti83plus.inc"
 
 ; Fill the unimplemented parts of memory with rst 00h
 .fill $4000, $c7
+.list
 
 .seek $0000
     trap TRAP_RESET
@@ -51,6 +54,3 @@
 bcall_handler:
     trap TRAP_BCALL
     trap TRAP_BCALL_RETURN
-
-
-.seek $4000

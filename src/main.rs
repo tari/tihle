@@ -146,12 +146,19 @@ fn main() {
             use sdl2::event::Event;
 
             match event {
-                Event::KeyDown {
-                    keycode: Some(k),
-                    repeat: false,
-                    ..
-                } => {
-                    debug!("key down: {}", k);
+                Event::KeyDown { keycode: Some(k), .. } => {
+                    if let Some(k) = translate_keycode(k) {
+                        debug!("Key down: {:?}", k);
+                        emu.keyboard.key_down(k);
+                    } else {
+                        debug!("Ignoring unhandled key {:?}", k);
+                    }
+                }
+                Event::KeyUp { keycode: Some(k), .. } => {
+                    if let Some(k) = translate_keycode(k) {
+                        debug!("Key up: {:?}", k);
+                        emu.keyboard.key_up(k);
+                    }
                 }
                 Event::DropFile { filename, .. } => {
                     emu.reset();
@@ -178,4 +185,36 @@ fn main() {
         }
         emu.run(&mut cpu, &frame_start);
     }
+}
+
+fn translate_keycode(keycode: sdl2::keyboard::Keycode) -> Option<tihle::keyboard::Key> {
+    use sdl2::keyboard::Keycode;
+    use tihle::keyboard::Key;
+
+    Some(match keycode {
+        Keycode::Left => Key::Left,
+        Keycode::Up => Key::Up,
+        Keycode::Right => Key::Right,
+        Keycode::Down => Key::Down,
+        Keycode::LCtrl | Keycode::RCtrl => Key::Second,
+        Keycode::LShift | Keycode::RShift => Key::Alpha,
+        Keycode::Num0 | Keycode::Kp0 => Key::Zero,
+        Keycode::Num1 | Keycode::Kp1 => Key::One,
+        Keycode::Num2 | Keycode::Kp2 => Key::Two,
+        Keycode::Num3 | Keycode::Kp3 => Key::Three,
+        Keycode::Num4 | Keycode::Kp4 => Key::Four,
+        Keycode::Num5 | Keycode::Kp5 => Key::Five,
+        Keycode::Num6 | Keycode::Kp6 => Key::Six,
+        Keycode::Num7 | Keycode::Kp7 => Key::Seven,
+        Keycode::Num8 | Keycode::Kp8 => Key::Eight,
+        Keycode::Num9 | Keycode::Kp9 => Key::Nine,
+        Keycode::Plus | Keycode::KpPlus => Key::Plus,
+        Keycode::Minus | Keycode::KpMinus => Key::Minus,
+        Keycode::KpMultiply => Key::Multiply,
+        Keycode::KpDivide | Keycode::Slash => Key::Divide,
+        Keycode::Return | Keycode::KpEnter => Key::Enter,
+        Keycode::Period | Keycode::KpPeriod => Key::Period,
+        Keycode::Backspace => Key::Clear,
+        _ => { return None },
+    })
 }

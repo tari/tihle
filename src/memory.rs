@@ -22,9 +22,15 @@ impl Memory {
             flash[*page as usize][..contents.len()].copy_from_slice(contents);
         }
 
+        // Fill RAM with pseudo-random values
+        let mut ram = [0; 0x8000];
+        for (ram, value) in ram.iter_mut().zip((0u8..=0xFF).cycle()) {
+            *ram = value;
+        }
+
         Memory {
             flash,
-            ram: [0; 0x8000],
+            ram,
             bank_a_page: 0,
         }
     }

@@ -1,5 +1,7 @@
 use super::bcalls;
 use crate::{Emulator, Z80};
+use crate::bcalls::{test_flag, set_flag};
+use crate::include::tios;
 
 /// Defined emulator traps.
 ///
@@ -23,6 +25,8 @@ pub enum Trap {
     VPutMap = 0x455e,
     GrBufCpy = 0x4860,
     MemSet = 0x4C33,
+
+    PrintCpuState = 0xFFFF,
 }
 
 impl Trap {
@@ -43,8 +47,19 @@ impl Trap {
                 //  * Keyboard scanning (call KbdScan)
                 //  * Run indicator
                 //  * Set onInterrupt,(onFlags) if ON is pressed
-                trace!("OS interrupt fired, doing nothing");
-                14
+                if test_flag(emu, core, tios::indicFlags, tios::indicOnly) {
+                    // Stop if only supposed to animate the run indicator
+                    return 200;
+                }
+
+                // Keyboard scanning: if more than one key is pressed don't set any,
+                // otherwise write the scan code to (kbdScanCode) and set the kbdSCR flag.
+                if let Some(k) = emu.keyboard.scan() {
+                    set_flag(emu, core, tios::kbdFlags, tios::kbdSCR);
+                    emu.mem[tios::kbdScanCode] = k as u8;
+                }
+
+                400     // :shrug:
             }
 
             PutMap => bcalls::display::PutMap(emu, core),
@@ -55,6 +70,10 @@ impl Trap {
             VPutMap => bcalls::display::VPutMap(emu, core),
             GrBufCpy => bcalls::display::GrBufCpy(emu),
             MemSet => bcalls::memory::MemSet(emu, core),
+            PrintCpuState => {
+                info!("{:#?}", core.regs());
+                0
+            }
         }
     }
 }

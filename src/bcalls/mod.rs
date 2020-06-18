@@ -71,3 +71,7 @@ pub fn bcall_trap_return(emu: &mut Emulator, core: &mut Z80) -> usize {
 pub fn test_flag(emu: &Emulator, core: &Z80, byte: u8, bit: u8) -> bool {
     (emu.mem[core.regs().iy.wrapping_add(byte as u16)] & (1 << bit)) != 0
 }
+
+pub fn set_flag(emu: &mut Emulator, core: &Z80, byte: u8, bit: u8) {
+    emu.mem[core.regs().iy.wrapping_add(byte as u16)] |= 1 << bit;
+}

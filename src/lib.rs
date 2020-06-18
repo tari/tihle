@@ -76,6 +76,7 @@ mod bcalls;
 mod checksum;
 pub mod display;
 mod interrupt;
+pub mod keyboard;
 pub mod memory;
 mod tifiles;
 mod traps;
@@ -96,6 +97,7 @@ pub struct Emulator {
     pub mem: Memory,
     pub interrupt_controller: InterruptController,
     pub display: display::Display,
+    pub keyboard: keyboard::Keyboard,
 
     target_framerate: u32,
     /// If true, emulation has terminated.
@@ -116,6 +118,7 @@ impl Emulator {
             mem: Memory::new(FLASH_IMAGE),
             interrupt_controller: InterruptController::new(),
             display: display::Display::new(),
+            keyboard: keyboard::Keyboard::new(),
 
             target_framerate: 60,
             terminate: Cell::new(false),
@@ -263,13 +266,14 @@ impl Emulator {
 
     fn setup_tios_context(&mut self, core: &mut Z80) {
         let regs = core.regs_mut();
+        use include::tios;
 
         // Enable interrupts in mode 1
         regs.set_interrupt_enable(true);
         regs.set_im(1);
 
         // IY points to flags
-        regs.iy = include::tios::flags;
+        regs.iy = tios::flags;
 
         // TODO we may need to set up the VAT and other things for Mirage.
     }
@@ -295,6 +299,7 @@ impl Emulator {
 
     fn write_io(&mut self, cpu: &mut Z80, port: u8, value: u8) {
         match port {
+            0x01 => self.keyboard.set_active_mask(value),
             0x03 => {
                 self.interrupt_controller.write_mask_port(value);
                 // TODO since this can affect scheduling, we should actually force
@@ -304,6 +309,7 @@ impl Emulator {
                 debug!("Port 3 write {:02X} sets IRQ={}", value, pending);
                 cpu.set_irq(pending);
             },
+            0x06 => self.mem.set_bank_a_page(value),
             0x10 => self.display.write_control(value),
             0x11 => self.display.write_data(value),
             _ => {
@@ -317,8 +323,10 @@ impl Emulator {
 
     fn read_io(&mut self, _core: &mut Z80, port: u8) -> u8 {
         match port {
+            0x01 => self.keyboard.read(),
             0x03 => self.interrupt_controller.read_mask_port(),
             0x04 => self.interrupt_controller.read_status_port(),
+            0x06 => self.mem.get_bank_a_page(),
             0x10 => self.display.read_status(),
             0x11 => self.display.read_data(),
             _ => {

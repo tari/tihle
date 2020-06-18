@@ -6,7 +6,7 @@
 ;
 ; TODO support exporting addresses so we don't need this jump table
 .org $4000
-    jp CpHLDE   ; 4000
+    jp cpHLDE   ; 4000
     jp PutMap   ; 4003
     jp PutC     ; 4006
     jp DispHL   ; 4009
@@ -17,11 +17,12 @@
     jp VPutS    ; 4018
     jp GrBufCpu ; 401b
     jp MemSet   ; 401e
+    jp GetCSC   ; 4021
 
 #include "ti83plus.inc"
 #include "tihle-os.inc"
 
-CpHLDE:
+cpHLDE:
     push hl
     or a
     sbc hl,de
@@ -66,6 +67,17 @@ VPutS_done:
     pop ix
     pop de
     pop af
+    ret
+
+
+; GetCSC depends on interrupt keyboard polling, so is pretty easy.
+GetCSC:
+    ld hl, kbdScanCode
+    di                          ; Atomically read and clear scan code
+    ld a, (hl)
+    ld (hl), 0
+    res kbdSCR, (iy+kbdFlags)   ; Consumed scan code, none ready
+    ei
     ret
 
 PutMap: trap _PutMap \ ret
