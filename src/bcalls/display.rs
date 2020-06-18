@@ -91,7 +91,16 @@ fn put_char(emu: &mut Emulator, c: u8, col: u8, row: u8) {
 static LARGE_FONT: &[u8] = include_bytes!("lgfont.bin");
 
 pub fn DispHL(emu: &mut Emulator, core: &mut Z80) -> usize {
-    unimplemented!();
+    let s = format!("{:5}", core.regs().hl);
+    emu.mem[tios::OP1..tios::OP1+5].copy_from_slice(s.as_bytes());
+
+    let row = emu.mem[tios::curRow];
+    let start_col = std::cmp::min(emu.mem[tios::curCol], 15);
+    for (c, col) in s.chars().zip(start_col..16) {
+        put_char(emu, c as u8, col, row);
+    }
+
+    PUTC_TIME * 5 + 200
 }
 
 /// Display a small font character, returning the character width in pixels.
