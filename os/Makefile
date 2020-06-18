@@ -4,10 +4,10 @@ BINARIES := $(addsuffix .bin,$(basename $(wildcard page*.asm)))
 
 all: $(BINARIES)
 
-%.bin: %.asm
-	$(SPASM) $< $@
+%.bin %.lst: %.asm
+	$(SPASM) -T -I ../programs/include/ $< $@
 
 .PHONY: clean
 
 clean:
-	rm -f $(BINARIES)
+	rm -f $(BINARIES) $(addsuffix .lst,$(basename $(BINARIES)))
