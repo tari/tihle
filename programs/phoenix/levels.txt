@@ -1,0 +1,555 @@
+Phoenix 2.0 for TI-82/83/83+/85/85 by Patrick Davidson - Level Creation
+
+This documentation describes how to create external level files for 
+Phoenix 2.0 and above.  For general information, refer to 'PHOENIX.TXT'.
+
+_______________________________________________________ Table of Contents
+
+1. Introduction ...................................................... 18
+2. Building level files .............................................. 42
+3. Level file layout ................................................. 76
+4. Level commands ................................................... 125
+5. Movement types ................................................... 330
+6. Weapons .......................................................... 424
+7. Sprite data format ............................................... 444
+8. Path format ...................................................... 503
+9. Limitations ...................................................... 528
+
+____________________________________________________________ Introduction
+
+The external level format has been completely redesigned for version 2.0
+of Phoenix in order to make it more flexible.  Since there ae not a whole
+lot of other levels out there, this should not be too much of a problem.
+
+The current format is much more flexible than was used before.  In this
+format, various aspects of enemies (like the movement type, firing rate,
+strength, image, etc.) can be chosen independently, instead of having
+only a few specific types.  Furthermore, all data relating to an enemy
+can be chosen differently for each enemy, so there can be multiple
+patterns, bosses of the same type with different images, and so forth.
+Additionally all enemies can have sprites of any size, animated or not.
+
+The data of a level file itself would normally be an assembly source
+file with the data specified in define constant statements, and by
+supplied macros.  The level data itself does not contain any assembly
+code however, but only data to be used by the main Phoenix program.
+
+Although separate level files must be made for each calculator, the
+differences pertain only to addresses and headers.  Therefore the main
+level data needs only be written once, and the levels can then by
+compiled for all calculators.
+
+____________________________________ Building level files
+
+Level files have a specific format required for each calculator.  In the
+case of the TI-85 and TI-86, they must contain the code to run the main
+Phoenix program, which will then play the level.
+
+The headers are the same for all level files, so you only need to copy
+these.  You can get them in the published archive for the Jupiter
+levels.  To adapt these to be your own levels, you only need to modify
+the 'level.asm' file, which contains all data describing the level.
+Since the only data needed by the main program once it is started is
+the level data copied to a specific address, you can modify the startup
+code for the TI-85 and TI-86 versions (e.g. to display your own title
+screen and credits) or change the program title.  If you want to do
+this, however, you should be very careful not to change anything that
+affects the main code or the level may not work (in particular, for the
+TI-86 version, don't insert or remove anything before level.asm is
+included).
+
+To build the levels, just run 'build levname' from a DOS command prompt.
+The build.bat file supplied will automatically run all of the necessary 
+building programs to build it for all calculators.  If you don't want to
+build for a particular calculator, you can remove the code specific to
+that calculator.  I have not included any provisions for using any fancy
+graphical IDE programs to build levels, but if you like using one of
+these, you probably can if you can get it to compile the same files
+build.bat does (except the TI-85 version; you may have to try a little 
+harder for it).
+
+It is expected that the standard build tools for each calculator are
+installed (the same ones needed to build Phoenix).  Also, it is expected
+that the current directory is a subdirectory of the one where the Phoenix
+source code (especially phoenixz.i) is located.
+
+_______________________________________________________ Level file layout
+
+(Note that all of this may make more sense if you look at some sample
+level data, such as that of jupiter.asm.)
+
+The actual data in level.asm follows the following simple pattern:
+
+First, an 8-byte identifier of the level.  The first 8 bytes will be 
+used for this nomatter what they are.  This should be some nice-looking
+text, since it will be shown as the level name on the TI-82, TI-83, and
+TI-83 Plus.  It is also used to check whether you have run the correct
+level to restore a saved game, so it is important for the TI-85 and
+TI-86 also.  An example of this would be
+
+        .db     "LEVEL!!!"
+
+No zero termination is needed.
+
+(The following applies not only to external levels, but also to the
+internal level data of Phoenix as well).
+
+Next comes the list of levels.  This is simple a list of word pointers,
+such as the following
+
+        .dw     data_for_level_1
+        .dw     data_for_level_2
+        ...
+
+and so on.  No relocation is needed since the level files is always
+moved to a certain address (which is different on each calculator; this
+is why it needs to be compiled separately for each).  There is no
+specific type of end marker here.  Rather, at the end there should be a
+final level which has only a command to end the game.
+
+Then comes the level data itself.  The data for a level consists first
+of the number of enemies that will be placed in that level (or more
+specifically, the number of enemies you must destroy to complete the
+level) followed by level commands.  Note of course that each level
+must begin at the levels mentioned in the list.  Example:
+
+data_for_level_1:
+        .db      8
+        .db      COMMAND
+        .db      ANOTHER_COMMAND
+        ...
+        .db      L_END
+
+which assumes these commands create 8 enemies.  
+
+__________________________________________________________ Level commands
+
+(You can see plenty of examples of full levels of commands in both
+the 'jupiter.asm' level files as well as the built-in level data in
+'levels.asm' which is in the same format.)
+
+Level commands do the real work of setting up a level.  These have
+symbolic names given in 'phoenixz.i' so you can just put these names
+in db statements to create the commands.  Each command has its own
+required format.  Since one byte of output is like any other, Phoenix
+does not have any way of telling if you put too few arguments or too
+many, so if you do that it will still try to read the number of
+arguments that should be there, with bad results.  Thus you should be
+sure to get it right.
+
+At the beginning of processing, all enemy attributes will be set to
+default values, and there will be no enemies actually present in the
+level.  To place enemies (which will be needed, unless you want the level
+to be very easy) you use insertion commands which place enemies with the 
+current characteristics at specified coordinates.  To change the 
+specifications, use other commands to set the various attributes of an
+enemy.  These changes will then apply to all enemies subsequently 
+inserted in the level, until you change it again.  Each level should end
+with an L_END command, which marks the end of commands for that level.
+
+And now the complete list of commands and there usages.  Under each
+heading is the format the command should be used in (note that
+things other than the L_ that is the first byte are variables which
+you should put in the appropriate value for).
+
+____________ L_END
+
+ .db L_END
+
+This command marks the end of the commands specifying a level.  This is
+required at the end of every level (with the exceptions mentioned below).
+
+____________ L_SHOP
+
+ .db L_SHOP
+
+This command enters the shop.  To include a shop in the game, put in
+a level with 0 enemies and this as the only command.  L_END is not
+needed at the end of such a level.
+
+____________ L_GAMEEND
+
+ .db L_GAMEEND
+
+This command ends the game and shows the final score.  At the end of all
+of your levels, you should put one such level (if not, whatever data is
+past the end of your list of level pointers will be interpreted as
+more level pointers, which is not good).
+
+____________ L_SET_POWER
+
+ .db L_SET_POWER,POWER
+
+This command sets the power of subsequent enemies to the number given
+for POWER.  This number should be between 1 and 255.  It actually gives
+the amount of damage an enemy can take before being destroyed.  Note
+that basic player weapon does 2 points of damage per hit.  The default
+power is 3 (which is used for enemies in the first built-in level).
+
+____________ L_SET_MOVETYPE
+
+ .db L_SET_MOVETYPE,MOVETYPE
+
+This command sets the movement type of subsequent enemies to the value
+given as MOVETYPE, which must be one of the types specified in the
+"Movement types" section.  The default type is EM_STANDARD, which just
+moves in the basic rectangular pattern.
+
+____________ L_SET_MOVEDATA
+
+ .db L_SET_MOVEDATA,DATA1,DATA2
+
+or
+
+ .db L_SET_MOVEDATA
+ .dw DATA
+
+This command sets the first two bytes of the movement data.  Their 
+meaning depends on the movement type chosen.  Both forms seem the same
+to the game since they both put two bytes of data.  If there are two
+separate numbers, you would normally use the first, but if there is only
+one value, such as a pointer to a pointer, you normally use the second.
+The default value is meaningful for enemies in a regular pattern, and
+is not changed for most such enemies in the build-in levels.
+
+____________ L_SET_MOVEDATA2
+
+ .db L_SET_MOVEDATA2,DATA
+
+This sets the third byte of the movement data, not part of the data
+above.  Its meaning also depends on the movement type.
+
+____________ L_IMAGE_STILL
+
+ .db L_IMAGE_STILL
+ .dw IMAGE_POINTER
+
+This sets the image of the enemy to whatever is at the label given by
+IMAGE_POINTER.  This should be used for non-animated enemies only.
+Refer to the image format section for information on the format of the
+sprite data.
+
+____________ L_IMAGE_ANIM
+
+ .db L_IMAGE_ANIM
+ .dw IMAGE_POINTER
+
+This sets the image of the enemy to whatever is at the label given by
+IMAGE_POINTER, which in this case is a list of sprites to be animated
+through.  This should be used for animated enemies only.  Refer to the
+image format section for information on the format of the sprite data.
+
+____________ L_SET_FIRETYPE
+
+ .db L_SET_FIRETYPE,FT
+
+This sets the firing type to whatever is given by FT.  Here the value
+for FT indicates how the enemy decides when to fire, not which weapon
+is used.  Firing types are:
+
+FT_RANDOM: Each frame, randomly decides whether to fire (default)
+FT_NONE: Never fires
+FT_PERIODIC: Fires at a given interval
+
+____________ L_SET_FIRERATE
+
+ .db L_SET_FIRERATE,N
+
+Sets the firing rate to N.  In FT_RANDOM mode, this gives a probability
+of N/256 of firing each frame.  The default value (used for most of the
+basic enemies in the built-in-levels) is 2, meaning the enemies will
+fire 1/128 of the time (averaging about once every 4 seconds).  In 
+FT_PERIODIC mode, this is the number of frames between shots.  Thus a 
+value of 30 would be about once a second (depending on game speed).
+
+___________ L_SET_WEAPON
+
+ .db L_SET_WEAPON,W
+
+Sets the weapon used to W.  See the weapons section for a list of all
+values.  The default is W_NORMAL, which just drops the small blocks
+down as you can see in the first levels of the built-in levels.
+
+___________ L_SET_FIREPOWER
+
+ .db L_SET_FIREPOWER,N
+
+Sets the amount of damage done by enemy bullets to N.  This value should
+be between 1 and 17 (at 17, a single hit will always destroy to player).
+The default value is 1, which is used for most enemies in the built-in
+levels.
+
+___________ L_INSTALL_ONE
+
+ .db L_INSTALL_ONE,X,Y
+
+Places one enemy in play, using the attributes set at the moment, at 
+coordinates (X,Y).  Note that the upper-left corner of the screen is
+at (0,32) on the TI-85 and TI-86 and (16, 32) on the TI-82, TI-83, and
+TI-83 Plus.  Also note that some enemy types will move down varying
+amounts to enter, so enemies should generally be placed above the screen
+from where they will swoop in.  Finally, for some specific types of
+movement there are other issues regarding coordinates; refer to the
+movement type data for details.
+
+___________ L_INSTALL_ROW
+
+ .db L_INSTALL_ROW,X,Y,N,SPACE
+
+Places a row of enemies in play using the currently selected attributes.
+Places a total of N enemies starting at (X,Y), with the X coordinate
+increased by SPACE for each subsequent enemies.  Same notes about
+coordinates as above apply here.
+
+____________ L_GOTO
+
+ .db L_GOTO
+ .dw LABEL
+
+This jumps to LABEL and continues processing from there.  LABEL must
+point to another valid sequence of level commands, and begin right at
+the first by of a command, as in the following
+
+LABEL:
+ .db IMAGE_STILL
+ .dw image
+ ...
+
+LABEL must not be, say, at the ".dw image" line since then the first byte
+of the image specification will be taken as a command, with bad results.
+
+This command is very useful to make level files smaller.  If some levels
+are similar, they can simply set their unique attributes, or create their
+unique enemies, at the beginning of each,  and then have common commands
+for setting the attributes that stay the same, as well as install the
+enemies.  Only one of the levels needs to have the common commands; the
+other can then jump to the common part.  This capability allowed both
+the main Phoenix program (and the Jupiter levels) to be made smaller with
+the new level data format, even though it requires more information.
+
+____________________________________________________ Enemy movement types
+
+Here is the list of enemy types.  Immediately after each type, an example
+of the code needed for setting up the specific movement variables for the
+enemy types is given.  Again, complete example levels can be found in the
+source code of Phoenix or the released external levels. 
+
+Please note that coordinates referred to here are for the upper-right
+corner of the enemies.  Keep in mind the screen boundaires mentioned uner
+L_INSTALL_ONE above.
+
+___________ EM_STANDARD
+
+
+ .db L_SET_MOVEDATA,-DOWNDISTANCE*2,0
+ .db L_SET_MOVETYPE,EM_STANDARD
+
+The standard type is the movement of enemies which swoop down and then move
+in a rectangular pattern, such as the first enemies in the game.  The number
+given by DOWNDISTANCE tells how far down the enemy will move before entering
+the pattern.  You must put -2 times this value in the data byte.  The
+default enemy movement data gives this a value of 30 (so -60 is the data
+stored) which moves the enemies down into their typical positions from just
+above the screen, where they are placed.
+
+___________ EM_NONE
+
+ .db L_SET_MOVETYPE,EM_NONE
+
+Quite simply, an enemy that doesn't move at all.  This is used mainly for
+explosions which you don't need to create by hand.  However if you want an
+enemy to appear at the start of a level and never move, you can use this.
+However, if you want the enemy to enter along a path and then stop, you
+should use the EM_PATTERNSTART type with a pattern that will move it into
+position, then enter a loop with 0 movement.
+
+___________ EM_BOSS
+
+ .db L_SET_MOVEDATA,0,DESCENT
+ .db L_SET_MOVETYPE,EM_BOSS
+
+This creates an enemy which moves down by DESCENT pixels, then moves back
+and forth across the whole screen.  The initial position should be above
+the top of the screen.  The left edge of the pattern is 83 pixels left of
+the initial coordinate, and the right edge 7 pixels right of it, so you
+should put the boss near the right edge of the screen.
+
+___________ EM_BOUNCE
+
+ .db L_SET_MOVEDATA,XV,YV
+ .db L_SET_MOVETYPE,EM_BOUNCE
+
+These enemies bounce around randomly inside the rectangle bounded by
+(13, 31) and (107, 60).  The XV and YV are the velocities on the X and
+Y axes and can be compted by adding the direction (0 for left or up, 2
+for rght or down) and speed (0 for slow, 1 for fast) to get the value.
+Note that the enemies must have an initial location and veloctiy that
+will bring them into the rectangle.
+
+__________ EM_PATTERNSTART
+
+ .db L_SET_MOVEDATA
+ .dw patterndata
+ .db L_SET_MOVETYPE,EM_PATTERNSTART
+
+This creates an enemy which follows a specified pattern.  For these enemies,
+the X and Y coordinates have special meaning.  The X coordinate is taken
+as the length (in frames) of the delay before entry, and the Y coordinate
+becomes the intial X coordinate (with initial Y always set to 9).  This
+allows you to create a sequence of enemies in the same path which will
+be spaced in time using an L_INSTALL_ROW command.  See the section below
+on path format for information on how to create the path data.
+
+__________ EM_RAMPAGEINIT
+
+ .db L_SET_MOVETYPE,EM_RAMPAGEINIT
+
+A type of enemy moving randomly between (16,41) and (105,49).  The style
+of movement is somewhat different from that of the EM_BOUNCE enemies.
+Used for the O enemies in the main Phoenix game.
+
+__________ EM_RAMPAGEWAIT
+
+An enemy that moves like EM_STANDARD until the number of enemies 
+remaining drops to 8, after which it changes to the rampaging type
+described above.  Data is the same as for EM_STANDARD.
+
+__________ EM_SWOOPWAIT
+
+ .db L_SET_MOVETYPE, EM_SWOOPWAIT
+
+An enemy that will randomly swoop down, across, and up the screen in one
+of several paths.
+
+_________________________________________________________________ Weapons
+
+W_NORMAL - Drops small block straight down, as used by the first enemies
+in the main Phoenix game.
+
+W_DOUBLE - Fires two shots 14 pixels apart, partially aimed towads the
+player.  Used by the earlier bosses in the main Phoenix game.
+
+W_SEMIAIM - Fires a single shot that is partially aimed.
+
+W_BIG - As with double, but more precise aim.
+
+W_HUGE - As with W_BIG, but larger bullet as well.
+
+W_ARROW - Drops a single arrow straight down.
+
+W_SINGLEBIG - Single version of W_BIG.
+
+W_SINGLEHUGE - Single version of W_HUGE.
+
+____________________________________________________________ Image format
+
+For sprites 8 pixels wide or narrower, the format is simple.  As an example,
+here is a smiley face:
+
+sprite_smiley:
+ .db 8,9
+ .db %00111100
+ .db %01000010
+ .db %10000001
+ .db %10100101
+ .db %10000001
+ .db %10100101
+ .db %10011001
+ .db %01000010
+ .db %00111100
+
+The sprite begins with the width, then contains the height.  Following is
+the sprite data, one byte per line (if the sprite is less than 8 pixels
+wide, the rightmost part of it should be left as all zeros).  The data
+has 0s for transparent pixels, 1 for drawn pixels.
+
+If the sprite is more than 8 pixels wide, it is somewhat more complicated.
+To create such a sprite, put in the full width and height at the start,
+but in the first section of the data, put in the data only for the eight
+leftmost pixels of the sprite.  Then follow this immediately with the
+rest of the sprite, as if another sprite.  As an example, a 20-pixel-wide
+sprite would look something like:
+
+ .db 20,2
+ .db %11111111   ; leftmost 8 pixels of sprite
+ .db %11111111
+ .db 12,2
+ .db %11111111   ; next 8 pixels
+ .db %11111111
+ .db 4,2
+ .db %11110000   ; last 4 pixels
+ .db %11110000
+
+There are plenty of examples in images.asm.
+
+For an animated image, the sequence should be constructed as follows:
+
+sequence:
+ .db FIRST_IMAGE_TIME
+ .dw FIRST_IMAGE
+ .db SECOND_IMAGE_TIME
+ .dw SECOND_IMAGE
+ ...
+ .db 0
+ .dw sequence
+
+The sequence is essentially a list of images and the duration each one is
+shown.  The time is in game frames.  Each time is given as a byte, followed
+by a word which is a pointer to the sprite (in the format given above).
+At the end of the sequence, put a time of 0 (to indicate a restart) followed
+by the position to restart the sequence at (normally the start of the
+sequence).
+
+_____________________________________________________________ Path format
+
+Here is a general example of what a path would look like:
+
+path_data:
+ .db 32,0,12
+path_loop:
+ .db 32,8,0
+ .db 32,-8,0
+ .db 0
+ .dw path_loop
+
+This path will move down 24 pixels, then go left and right over a 16
+pixel interval.  For each 3 bytes, the first byte indicates the number
+of frames it will be used.  Then are the X velocity and Y velocity,
+given as 16ths of a pixel per frame.  Note that the total distance
+traveled (velocity * time) should be a multiple of 16 and thus an even
+number of pixels.  When 0 is the time, it is treated as a goto, so
+in this case the loop restarts (it can also be used to switch between
+patterns with shared ends).  Note that enemies will stay in a loop
+forever, so be sure it takes them back where they started or the enemies
+will drift out of pattern (that is, sum of all displacements should be 0).
+If you want an enemy to stop, just create a loop in which the only
+movement command has 0 velocity.
+
+_____________________________________________________________ Limitations
+
+Please pay attention to all of the following:
+
+1) You must be sure to get the level data correct, since the program does
+not validate it.  To be sure your commands are valid, you should test your
+level file extensively.  The commands are used simply as indexes into
+jump tables, so having one that is invalid will have very bad
+consequences.
+
+2) Use only defined commands.  Maybe putting in random numbers may happen
+not to crash now, but it may not stay that way in the next version.
+
+3) Don't try to reference images and paths in the main program, since
+their addresses can change in the next version.
+
+4) There is a size limit to levels.  If the file comes out longer than
+this, it will probably crash.
+
+TI-82, TI-83, and TI-83+: 3.5K
+TI-85: 1K
+TI-86: 7.5K
+
+5) Don't try to use movement types not mentioned above.  There are others
+defined in phoenixz.i, but these are intermediate values which may change.
+Also do not try to set movement data to something that is invalid by the
+specifications above, as values other than those given may be used to
+indicate additional features in later versions.

@@ -1,0 +1,523 @@
+ ________________________________________________________________________
+  
+    Phoenix - The ultimate (?) shoot-em-up for the TI-82 through TI-86!
+  
+                      Version 4.3 - May 4, 2015
+
+ pad@ocf.berkeley.edu                   http://www.ocf.berkeley.edu/~pad/
+ ________________________________________________________________________
+
+ _____________________________________ TABLE OF CONTENTS
+
+ 1. Introduction ..................................................... 25  
+ 2. System requirements .............................................. 47
+ 3. Legal stuff ...................................................... 68  
+ 4. Instructions ..................................................... 92
+ 5. External Levels ................................................. 183
+ 5. Shop Items ...................................................... 239
+ 6. Contacting the Programmer ....................................... 289 
+ 7. Acknowledgements ................................................ 315
+ 8. Version History ................................................. 352
+ 9. Note regarding TI-73 and TI-83 Plus Ion versions ................ 520
+
+ _____________________________________ INTRODUCTION
+
+Phoenix is a freely redistributable shoot-em-up style game for the TI-82
+through TI-86 calculators.  This game was written completely in Z80 assembly
+language to fully take advantage of the calculator's capabilities.
+
+If you want to obtain other calculator programs or learn more about TI
+calculators, I would suggest visiting the web sites listed below.  They all
+have large archives as well as help sections.  If you don't know how to
+transfer programs to your calculator, or how to run them once you've
+transferred them, you need to read their help pages to learn these things.
+
+    http://www.ticalc.org/     
+    http://www.cemetech.net/    
+
+Modification of this program is encouraged.  To facilitate this, I have
+included full source code, and supplied another document, 'INTERNAL.TXT',
+which describes the internal workings of the program.
+
+This game also now features a flexible external level system.  Refer to
+'LEVELS.TXT' for information on creating external levels.
+
+ _____________________________________ SYSTEM REQUIREMENTS 
+
+For every calculator, you will need enough memory to store the game itself.
+You can determine this amount by examining the file sizes (the amount of
+memory actually used on the calculator is a few bytes less than the file on
+the computer).
+
+Additional requirements vary by calculator:
+
+TI-82: You must install Ace beta 4 (or above) first.
+
+TI-83: You must install Ion 1.6 (or another shell compatible with it).
+
+TI-83 Plus, TI-83 Plus Silver Edition, TI-84 Plus, TI-84 Plus Silver Edition:
+       You must install MirageOS (or another shell compatible with it).
+
+TI-85: You must install Usgard 1.5 first, and must have at least 1.25K
+       of free memory when you run the game.
+
+TI-86: Nothing else is needed!
+
+ _____________________________________ LEGAL STUFF
+
+Since you did not pay me anything for the right to use this software, there
+is no warranty of any kind.  This software has been tested, and at the time
+of release the author was not aware of any serious problems with it.
+However, there is still a possibility of unforeseen problems.  If you do
+encounter any problems with this program, please inform me as soon as
+possible (of course, I cannot guarantee that I will fix such problems).
+
+All portions of the program made by me are copyrighted by me, but may be
+freely used, copied, and/or modified with no restrictions.
+
+However, I would appreciate if you at least do the following if you are
+making a modified version:
+
+ - Don't add any restrictions to its distribution or modification
+ - Supply complete source code
+ - Give me a reasonable amount of credit
+
+Note that this applies only to the parts of the program that I wrote.  All of
+the source code supplied was written by me.  However, the TI-86 version is
+compressed by Lite86, and thus uses the Lite86 decompression routine also.
+Lite86 is copyrighted by Kirk Meyer.
+
+ _____________________________________ INSTRUCTIONS
+
+TI-82 users: To run this program, you must first install ACE, then send
+this program to the calculator.  It can only be started from inside of ACE.
+
+Note: These instructions refer to keys on the TI-85 and TI-86.  If you are
+using a TI-82/83/83+, substitute the number keys 1-5 for the function keys
+F1-F5, and use MODE in place of EXIT and DEL in place of MORE.
+
+If you are using the Ion or TI-82 version of Phoenix, the first thing that
+you will see is the level selection screen.  You can move through the list
+with the arrow keys.  After selecting the levels you want to play, press
+ENTER to start the game.
+
+After choosing a level (or at the very beginning when playing versions other
+than the Ion one), you will see the title screen.  This screen just
+identifies the game, and gives you a small menu.  As you can probably tell,
+F2 and F3 display additional information screens, and F1 starts the game.
+
+When you press F1 to start the game, you next see the difficulty level
+selection screen.  Press one of the indicated keys to choose a difficulty
+level.  The difficulty level chosen determines how much money you get, as
+well as how large your bonus is, as follows:
+
+Difficulty      Bonus       Value of each $ dropped
+
+Beginner        0           100
+Intermediate    5000        50
+Advanced        15000       25
+
+The next screen lets you select the speed of gameplay.  As you can probably
+guess, you get a larger bonus at higher speeds, as given in the following
+table (note that frame rate vary slightly between calculators and depending
+on your battery power):
+
+Speed           Bonus       TI-82 speed    TI-83+ speed     TI-85/86 speed
+
+Slow            0           26 Hz          28 Hz            25 Hz
+Medium          1000        n/a            n/a              29 Hz       
+Fast            5000        34 Hz          37 Hz            35 Hz       
+
+After selecting a difficulty level, the game play will begin almost
+immediately.  Your ship (an object which vaguely resembles the Greek letter
+sigma (summation symbol) on its side) can be controlled by the cursor pad.
+
+The condition of your ship is indicated by a vertical bar on the right side
+of the screen.  In ideal condition, it goes all the to the top; it will get
+shorter as you are damaged.  Note that on the TI-85 and TI-86, this is at
+the edge of the background image, so it won't be noticeable if you are at
+full strength; however, it's easy to notice when you are damaged.  Also, if
+your ship is nearly destroyed, the image will change from a solid ship to a
+dotted one.
+
+You can fire your weapon by pressing the 2nd key.  When you start the game,
+you do not have auto-fire capability, so you must repeatedly press the 2nd
+key to shoot multiple shots.  However, you can purchase a weapon upgrade that
+gives you auto-fire capabilitiy; then, you only need to hold down the 2nd
+key to fire rapidly (see the next section for more on purchasing upgrades).
+
+You can select from among the available weapons with the function keys.
+When you start the game, only the F1 weapon is available, but you can buy
+additional weapons that are more powerful during the game.
+
+At any time, you can press the EXIT key to quit immediately.  Pressing the
+MORE key will save your current position in the game and then exit.  Gameplay
+will resume immediately where you left off the next time your run Phoenix.
+
+The contrast can be adjusted at any point in the gameplay with the + and -
+keys.  You can also press ENTER to pause the game.
+
+If you complete the entire game, your final score will be shown.  You must
+press ENTER to continue.  Then you will be shown the high score table.  If
+you have gotten a high score, you will be prompted to enter your name.  You
+can enter letters by pressing the keys with the letters above them, and can
+backspace with the DEL key.  Press ENTER when done.  After the high scores
+are shown, press any key to resume the game (you will have everything you
+finished with, so the game may no longer be challenging; you can't get
+another high score during additional rounds).
+
+If you have a TI-73, you can't enter your name using the lettered keys
+since the keys don't have letters above them.  TI-73 users must enter
+names using the arrow keys; up and down arrows will change the letter
+entered, and left and right arrows move between letters.
+
+You can only get a high score if you finish the entire game.  Scores are
+based on the amount of your shield remaining, the difficulty level you chose,
+and the time taken to finish the game.  The amount of money you have also
+slightly affects your score.         
+
+To view the high scores, press ALPHA on the title screen.
+
+ _____________________________________ EXTERNAL LEVELS
+
+Phoenix includes a built-in level set, so you do not need any external
+files to run it.  However, all versions also allow you to use additional
+levels in external files.  They are used somewhat differently on the
+different calculators:
+
+TI-82:  You must send the level files to the calculator after sending the
+main Phoenix program.  To play the levels, just run Phoenix and then select
+which level set to use from the menu that appears when starting a new game.
+You will then advance to the title screen, from which you can start playing.
+To resume a saved game, just run Phoenix again and the levels will be loaded
+automatically (the levels must still be on the calculator; if not, you will
+see an error message, which gives you the option to erase the saved game).
+The levels may appear in the CrASH menu, but you can't run them directly.
+Also note that one level set may appear more than once in the list; this is
+not a problem, and you may select either instance.
+
+TI-83 and TI-83+:  To play external levels, simply run Phoenix and select
+them from the list that is displayed.  Once you select the levels, you will
+advance to the title screen from which you can start playing.  To resume a
+saved game, just run Phoenix again and the levels will be loaded
+automatically (the levels must still be on the calculator; if not, you will
+see an error message, which gives you the option to erase the saved game).
+On the TI-83+, external levels can be kept in RAM or archive memory.
+
+TI-85 and TI-86:  On these calculators, external level files are separate
+programs which you run to play the levels.  The level file will then start
+Phoenix itself, and you will see the Phoenix title screen.  For this to work,
+the main Phoenix program must remain on the calculator, and have its original
+filename.  If you have saved a game, you must run the same level file you
+saved it from to restore the game (if you start Phoenix directly, or by
+running the wrong level file, you will see an error message; you will have
+the option to erase the saved game).
+
+Note that external level support is limited at the moment.  Currently, the
+external level system is not very flexible, limiting what kind of levels can
+be created.  In particular, all enemy types used must be similar to those
+already existing (in general, enemies can be positioned anywhere, as long as
+they move in the normal way after being positioned; the patterns of the
+circular enemies can be changed; strengths of any enemies can be changed;
+and images of bosses, spinners, and "plain" enemies can be changed).
+
+In the current version, you cannot achieve high scores when playing external
+levels.  The score will be displayed, but you cannot get in the high score
+table; this is done to prevent "unfair" scores if the external world is
+easier than the regular one.
+
+There is also little documentation on creating external levels.  Some
+information is given in the supplied 'internal.txt' and the 'jupiter' levels
+also include some documentation on making levels.  Of course you can examine
+all of the external and internal level source code, as well as the source
+code of the game itself, to find more information.  Beware that the format
+may change in later versions (this actually now seems less likely, since no
+major updates to this program are expected).
+
+ _____________________________________ SHOP ITEMS
+
+At certain points in the game, you will have the oppurtunity to enter the
+Phoenix Shop where you can purchase various useful items.  You will only
+enter the shop if you have some money.  You can collect money while
+playing the game by moving your ship over it (the money is represented by $
+and $$ symbols).  When you collect money, it is automatically teleported to
+the First Intergalactic Bank so that you can easily spend it anywhere in the
+universe.  You will not be allowed to purchase weapons you already have, or
+buy extra shield when your shields are already full, so you don't need to
+worry about wasting money by accidentally buying such things.
+
+The following items are available at the Phoenix shop:
+
+Price   Item                Description
+
+ $100   Extra shield        This increases your shield strength by 1 step if
+                            it has been damaged.
+
+ $300   Weapon (F2)         Gives you the (F2) weapon, which fires two shots
+                            at once.  These shots are equally destructive as
+                            the default weapon, but move faster.
+
+ $500   Companion Ship      This gives you a companion ship.  This ship
+                            will automatically follow your ship, and fire
+                            its weapon against your enemies.  The shields of
+                            the companion ship can't be recharged; they start
+                            with the same power of the shields on your ship.
+                            If the companion is damaged, you can replace it
+                            with a new one by buying it again.  Its weapon is
+                            5 times as powerful as your default weapon, and
+                            fires about 4 times per second.
+
+ $750   Weapon Upgrade      Gives you auto-fire capability, and upgrades the
+                            standard (F1) weapon to double its power.
+
+$1000   Weapon (F3)         Gives you the (F3) weapon, which fires three
+                            shots at once.  The ones fired left and right are
+                            1.5 times as destructive as the default weapon,
+                            and the shot fired straight ahead is twice as
+                            destructive as the default weapon
+
+$1250   Weapon (F4)         Gives you the (F4) weapon.  This fires two shots
+                            at a time, at angles moving sligtly left and
+                            right, alternating between firing from the left
+                            and right sides of your ship.  Each shot is 4
+                            times as destructive as the default weapon.
+
+$2000   Weapon (F5)         The most powerful weapon of all.
+
+ _____________________________________ CONTACTING THE PROGRAMMER
+
+If you find any bugs in this game or have suggestions or comments about it,
+please tell me in E-Mail!  If you are writing to report a bug, please be
+sure to tell me exactly what the problem is and describe exactly what you
+did before the problem occured.  If you don't do so, it will be very hard
+for me to tell what is going wrong!  You should also tell me which version
+of Monster you have and which calulator you use in any mail you send me.
+My main E-Mail address is:
+
+        pad@ocf.berkeley.edu
+
+I will usually answer my E-Mail within a week.  If you don't get any answer
+in two weeks, you can try sending to the following backup address:
+
+        eeulplek@hotmail.com
+
+If your E-Mail is set up to block all messages except those from certain
+addresses, always be sure that you have un-blocked my address before
+sending anything to me (best to un-block all of them, since I might answer
+from a different one than you sent to).
+
+You can always get the latest version of this game, as well as other
+programs of mine, from my web page.  The addresses are:
+
+        http://www.ocf.berkeley.edu/~pad/
+
+ _____________________________________ ACKNOWLEDGEMENTS
+
+The vast majority of this game is my (Patrick Davidson's) own work.  However,
+there are a few others whose assistance was invaluable in producing this
+game, and there efforts will be acknowledged here, in no particular order:
+
+Joe Wingbermuehle           For the fast TI-82/83/83+ display copy routine,
+                            and the Ion system for the TI-83 and TI-83+
+
+Sam Heald / The Void        Various suggestions, including using the routine
+                            above
+
+Andreas Finne / TCPA        Converting previous versions of the game to Ion
+
+David Boozer                All of these people were instrumental in
+Magnus Hagander             developing assembly support for the TI-85 and/or
+Dan Eble                    the Usgard system.
+Rob Taylor
+Sam Davies
+Jimmy Mardell
+Austin Butler
+Mel Tsai
+
+Dines Justesen              Researching assembly capabilities on the TI-82
+                            and developing the original Ash system.
+
+Hideaki Omuro               Developing the CrASH system for the TI-82.
+Jeff Mears
+
+Alan Bailey                 The Asm86 TI-86 development tools
+
+Kirk Meyer                  The Lite86 compression system
+
+Kieren Johnstone            Testing the program on a ROM 19.006 TI-82
+
+If you should be here but were left out (or worse, I misspelled your name)
+just E-Mail and I'll be sure to fix it for the next release.
+
+ _____________________________________ VERSION HISTORY
+
+Sizes listed here are for the TI-85 version.
+Line counts here include all sources for all versions.
+
+ Version  Date       Bytes  Lines  Description
+
+    0.01  28-Aug-00   4012   2926  First release
+                                   Nine levels
+
+    0.02  31-Aug-00   4202   3093  Implemented game saving
+                                   Began to write internal documentation
+                                   Circle/bar enemies shoot diagonally
+                                   Fixed enemy movement bug
+                                   Fixed TI-86 menu annoyance
+                                   Fixed TI-86 down + left bug
+                                   Added 3 levels
+                                   Decreased amount of money dropped
+
+    0.10   5-Sep-00   5627   4284  Optimized and improved collision detection
+                                   TI-86 keyboard input more precise
+                                   Now restores scrolling on TI-86
+                                   Reduced auto-fire rate
+                                   Decreased speed to ~30 frames per second
+                                   Implemented weapon 4
+                                   Increased maximum player bullets to 16
+                                   Implemented companion ship
+                                   Implemented bouncing enemies
+                                   Added 3 levels for them
+                                   Implemented difficulty levels
+
+    0.20  11-Sep-00   5627   4991  Added TI-82 version
+
+    0.50  30-Sep-00   7105   5086  Implemented high scores
+                                   Improved TI-82 and TI-86 memory use
+                                   Implemented weapon 5
+                                   Optimized player firing
+                                   Halved money falling rate
+                                   Implemented double buffering on TI-85/86
+                                   Switched to faster TI-82 display routine
+                                   Increased TI-85/86 speed to ~35 fps
+                                   Optimized collision detection
+                                   TI-82 speed now stable at ~34 fps
+                                   Implemented spinning enemies & levels
+                                   Adjusted shop prices
+
+    0.51   1-Oct-00   7105   6216  Speed bonus fixed for TI-82
+                                   TI-82 screen clearing optimized
+                                   TI-82 high score display fixed
+                                   Other small optimizations for TI-82 only
+
+    0.90  25-Nov-00   8229   7109  Redesigned level loader
+                                   Changed drawing mode to OR
+                                   Added superboss enemy & levels
+                                   Implemented speed selection
+                                   Fixed TI-85 save game problem
+                                   Implemented shield indicator
+                                   Enemy bullets explode when player is hit
+                                   Added operator enemy & levels
+                                   Added swooping enemy & levels
+                                   Fixed name input bug
+
+    0.95  20-Dec-00   8153   7295  Added Ion version for TI-83 and TI-83+
+                                   Source 'conversion' no longer needed
+                                   TI-86 version now compressed
+                                   Shortened some data structures
+                                   Optimized various routines
+
+    1.0   13-Feb-01   8230   7810  TI-85 version now runs at fixed address
+                                   Save game now works in external levels
+                                   Various optimizations
+                                   External level flexibility improved
+                                   External level support added on TI-83(+)
+
+    1.1   31-Mar-01   8177   7762  TI-86 building/packaging simplified
+                                   Various optimizations
+                                   Source files now in main directory
+                                   No more multi-level includes
+                                   Improved large enemy bullet handling
+                                   TI-82, Ion versions show shields in shop
+                                   Removed an unused source file
+                                   Fixed minor high score display bug
+
+    1.2    3-Apr-01   8166   7756  Fixed memory corruption on TI-85
+                                   Various optimizations
+
+    1.3    8-Apr-01   8166   7847  Added external level support on TI-82
+                                   Fixed text scrolling bug in Ion version
+
+    1.4    6-Jul-01   8359   8176  Can now adjust contrast in-game
+                                   Can pause game with ENTER
+                                   Improved random number generation
+                                   Made advanced mode slightly easier
+                                   TI-82 ROM version 19.006 supported!
+
+    1.5   11-Jul-01   8365   8184  Fixed TI-85/TI-86 restore bug
+
+    1.51  20-Sep-01   8367   8242  Fixed 83+SE display problems
+
+    1.7b   5-Apr-02   8344   8143  Released for TI-82 only
+                                   Now display is really fixed (I hope)
+                                   TI-86 power indicator separated
+                                   Optimized some routines slightly
+                                   Now uses own 82/83/83+ keyboard include
+                                   Ported TI-82 version to ACE
+                                   Slow auto-fire enabled by default
+
+    2.0   16-Aug-02   8266   7907  Fixed pause prompt text on TI-82
+                                   Redesigned enemy system
+                                   Implemented true wide sprite support
+                                   Optimized various things
+                                   TI-86 version now works with custom fonts
+                                   Default pattern-following enemies now spin
+                                   Added extensive level creation manual
+
+    2.1   21-Aug-02   8266   7907  Fixed a serious bug with a later level
+
+    3.0d   6-Jul-04   8574   8331  Public beta version
+                                   Money deployment now more consistent
+                                   Weapons now auto-selected when purchased
+                                   Gameplay colors can now be reversed
+                                   Added background to 82/83/83+ versions
+                                   Added options menu
+                                   Various small optimizations
+                                   CLEAR now another exit key on 82/83/83+
+                                   Level selector skipped if only one level
+
+    3.0    3-Aug-04   8568   8329  Early game end (for testing) removed
+
+    3.1    8-Aug-04   8568   8329  TI-86 version compressed again
+                                   Fixed restore for external levels
+
+    3.2   26-Dec-04   8568   8500  Added MirageOS version
+                                   Adjusted looping enemy path
+
+    3.3   17-Sep-05   8622   8820  Optimized 4 bytes as suggested by CalcKing
+                                   Added TI-73 version (experimental only)
+                                   Optimized some more
+                                   Made screen sides optional
+                                   TI-83 Plus version now for MirageOS only
+
+    4.0    8-Sep-08   8876   9151  In-game money display
+                                   Horizontal scrolling on 82/83/83+/84+
+                                   Updated in-game contact addresses
+
+    4.1    2-Jun-11   8847   9130  Updated in-game contact addresses again
+                                   Optimized player shooting code
+
+    4.2   17-Apr-15   8923   9301  Yet another contact address update
+                                   Removed unused TI-83 Plus Ion code
+                                   Added scrolling sides on 82/83/83+ title
+                                   Now buildable using SPASM assembler
+
+    4.3    4-May-15   8889   9190  Fixed ancient 82/83/83+ instructions typo
+                                   Optimized for size
+                                   Fixed level selection on TI-83
+                                   Fixed 82/83/83+ scoring screen
+    
+______________________________________ TI-73 AND TI-83 PLUS ION VERSIONS
+
+The current release includes source code for a TI-73 version.  However, the
+executable for the TI-73 version is not included.  You can build the TI-73
+version from the source if you like, but note that it has not been tested.
+
+The TI-83 Plus version is for MirageOS only because it is too large bytes) 
+for the size limit on these calculators.  A version built for Ion may
+work under MirageOS due to a different location of the library routines which
+might make it seem like there is no problem if you only use MirageOS, but
+the problem is still there and will occur if anyone using Ion tries to run
+that version.  Note that this only applies to the TI-83 Plus (and derivatives
+like the Silver Edition and TI-84 Plus).  The Ion version for the regular
+TI-83 works with no problems.
