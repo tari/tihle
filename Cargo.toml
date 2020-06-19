@@ -9,14 +9,11 @@ build = "build.rs"
 
 [[bin]]
 name = "tihle"
-required-features = ["sdl"]
 
 [profile.release]
 lto = true
 
 [features]
-default = ["sdl"]
-sdl = ["sdl2"]
 # env_logger supports regex filtering which can be enabled by turning on
 # env_logger/regex if desired.
 # log/release_max_level_info (or similar) can also be turned on to remove
@@ -29,7 +26,7 @@ env_logger = { version = "0.7.1", default-features = false, features = ["termcol
 log = "0.4.8"
 num-derive = "0.3"
 num-traits = "0.2"
-sdl2 = { version = "0.34", optional = true }
+sdl2 = { version = "0.34" }
 
 [build-dependencies]
 cc = "1.0"
