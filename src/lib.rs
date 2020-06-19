@@ -145,20 +145,19 @@ impl Emulator {
         (duration.as_secs_f64() / cycle_secs) as usize
     }
 
-    pub fn run(&mut self, cpu: &mut Z80, frame_start: &Instant) {
+    pub fn run(&mut self, cpu: &mut Z80, frame_start: &Instant) -> f32 {
         let frame_duration = Duration::from_nanos(1e9 as u64 / self.target_framerate as u64);
 
         if !self.is_running() {
             debug!("CPU terminated, sleeping for a frame");
             std::thread::sleep(frame_duration);
-            return;
+            return 1.0;
         }
 
         let (irq_pending, until_next_interrupt) = self.interrupt_controller.poll();
         debug!(
             "IRQ pending: {}; next interrupt: {:?}",
-            irq_pending,
-            until_next_interrupt
+            irq_pending, until_next_interrupt
         );
         cpu.set_irq(irq_pending);
 
@@ -178,6 +177,7 @@ impl Emulator {
         if cpu.is_halted() || self.terminate.get() {
             trace!("CPU halted, sleep {:?}", step_duration);
             std::thread::sleep(step_duration);
+            1.0
         } else {
             trace!(
                 "Run CPU for {:?} ({} cycles)",
@@ -199,6 +199,9 @@ impl Emulator {
                     step_elapsed.as_millis()
                 );
             }
+
+            // Return the current time vs the intended runtime
+            frame_start.elapsed().as_secs_f32() / step_duration.as_secs_f32()
         }
     }
 
@@ -278,6 +281,11 @@ impl Emulator {
         // The VAT is empty
         self.mem.write_u16(tios::progPtr, tios::symTable);
         self.mem.write_u16(tios::pTemp, tios::symTable);
+
+        // Cursor and pen are at top left
+        for &byte in &[tios::curRow, tios::curCol, tios::penRow, tios::penCol] {
+            self.mem[byte] = 0;
+        }
     }
 
     #[inline]
@@ -310,7 +318,7 @@ impl Emulator {
                 let (pending, _) = self.interrupt_controller.poll();
                 debug!("Port 3 write {:02X} sets IRQ={}", value, pending);
                 cpu.set_irq(pending);
-            },
+            }
             0x06 => self.mem.set_bank_a_page(value),
             0x10 => self.display.write_control(value),
             0x11 => self.display.write_data(value),

@@ -104,8 +104,10 @@ impl<'a> Video<'a> {
         self.canvas.present();
     }
 
-    fn show_speed(&mut self, _effective_speed: f32) {
-        self.canvas.window_mut().set_title(&format!("tihle ({:?}%)", unimplemented!()))
+    fn show_status(&mut self, status: &str) {
+        self.canvas
+            .window_mut()
+            .set_title(&format!("tihle ({})", status))
             .unwrap();
     }
 }
@@ -113,30 +115,89 @@ impl<'a> Video<'a> {
 fn main() {
     env_logger::init();
 
-    let args = std::env::args().collect::<Vec<String>>();
-    if args.len() != 2 {
-        eprintln!("Usage: {} <program.8xp>", args[0]);
-        return;
-    }
-
     let sdl_context = sdl2::init().unwrap();
 
     let video_subsystem = sdl_context.video().unwrap();
     let mut window = Window::create(video_subsystem);
     let mut video = Video::setup(&mut window);
-
     let mut events = sdl_context.event_pump().unwrap();
 
+    let mut run_error: Option<String> = None;
+    let mut program_to_run = std::env::args()
+        .skip(1)
+        .next()
+        .map(|name| File::open(name).unwrap());
+    loop {
+        if let Some(f) = program_to_run.take() {
+            info!("Starting emulation");
+            match run(&mut video, &mut events, f) {
+                Ok(false) => {}
+                Ok(true) => {
+                    break;
+                }
+                Err(e) => {
+                    run_error = Some(e);
+                }
+            }
+        } else {
+            info!("Nothing to run; idling");
+            if idle(
+                &mut video,
+                &mut events,
+                &mut program_to_run,
+                run_error.take(),
+            ) {
+                break;
+            }
+        }
+    }
+}
+
+fn idle(
+    video: &mut Video,
+    events: &mut sdl2::EventPump,
+    to_run: &mut Option<File>,
+    _last_error: Option<String>,
+) -> bool {
+    video.show_status("not running");
+    loop {
+        for event in events.poll_iter() {
+            use sdl2::event::Event;
+
+            match event {
+                Event::DropFile { filename, .. } => {
+                    *to_run = Some(File::open(filename).unwrap());
+                    return false;
+                }
+                Event::Quit { .. } => {
+                    return true;
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+fn run<R: std::io::Read>(
+    video: &mut Video,
+    events: &mut sdl2::EventPump,
+    program: R,
+) -> Result<bool, String> {
     let mut emu = tihle::Emulator::new();
     let mut cpu = tihle::Z80::new();
-    emu.load_program(
-        &mut cpu,
-        File::open(&args[1]).expect("Failed to open program file"),
-    )
-    .expect("Failed to load program");
+
+    info!("Loading program");
+    video.show_status("Loading program");
+    if let Err(e) = emu.load_program(&mut cpu, program) {
+        error!("Unable to load program: {:?}", e);
+        return Err(format!("{:?}", e));
+    }
+
+    let mut speed_history: [f32; 128] = [0.0; 128];
+    let mut speed_idx = (0..speed_history.len()).cycle();
 
     trace!("Entering run loop. {:#?}", cpu.regs_mut());
-    'runloop: loop {
+    loop {
         let frame_start = Instant::now();
 
         video.update(&emu.display);
@@ -146,7 +207,9 @@ fn main() {
             use sdl2::event::Event;
 
             match event {
-                Event::KeyDown { keycode: Some(k), .. } => {
+                Event::KeyDown {
+                    keycode: Some(k), ..
+                } => {
                     if let Some(k) = translate_keycode(k) {
                         debug!("Key down: {:?}", k);
                         emu.keyboard.key_down(k);
@@ -154,7 +217,9 @@ fn main() {
                         debug!("Ignoring unhandled key {:?}", k);
                     }
                 }
-                Event::KeyUp { keycode: Some(k), .. } => {
+                Event::KeyUp {
+                    keycode: Some(k), ..
+                } => {
                     if let Some(k) = translate_keycode(k) {
                         debug!("Key up: {:?}", k);
                         emu.keyboard.key_up(k);
@@ -174,7 +239,7 @@ fn main() {
                     }
                 }
                 Event::Quit { .. } => {
-                    break 'runloop;
+                    return Ok(true);
                 }
                 _ => {}
             }
@@ -183,8 +248,13 @@ fn main() {
         if !emu.is_running() {
             break;
         }
-        emu.run(&mut cpu, &frame_start);
+        let effective_rate = emu.run(&mut cpu, &frame_start);
+        speed_history[speed_idx.next().unwrap()] = effective_rate;
+        let average_rate = speed_history.iter().sum::<f32>() / speed_history.len() as f32;
+        video.show_status(&format!("{:3.0}%", average_rate * 100.0));
     }
+
+    Ok(false)
 }
 
 fn translate_keycode(keycode: sdl2::keyboard::Keycode) -> Option<tihle::keyboard::Key> {
@@ -215,6 +285,6 @@ fn translate_keycode(keycode: sdl2::keyboard::Keycode) -> Option<tihle::keyboard
         Keycode::Return | Keycode::KpEnter => Key::Enter,
         Keycode::Period | Keycode::KpPeriod => Key::Period,
         Keycode::Backspace => Key::Clear,
-        _ => { return None },
+        _ => return None,
     })
 }
