@@ -1,7 +1,13 @@
-FROM rust:stretch AS build-spasm
+FROM emscripten/emsdk AS build-spasm
 
+RUN apt-get -qqy update && apt-get -qqy install --no-install-recommends libgmp-dev libssl-dev
 RUN git clone --depth=1 https://github.com/alberthdev/spasm-ng.git
-RUN cd spasm-ng && make -j$(nproc) && cp spasm /usr/local/bin
+RUN make -C spasm-ng -j$(nproc) && make -C spasm-ng DESTDIR=/usr install
 
-FROM rust:stretch
-COPY --from=build-spasm /usr/local/bin/spasm /usr/local/bin/
+FROM emscripten/emsdk
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+        sh -s -- -t wasm32-unknown-emscripten,x86_64-pc-windows-gnu -y | \
+        echo 'export PATH="${HOME}/.cargo/bin:${PATH}"' >> "${HOME}/.bashrc"
+# spasm and its dependencies
+RUN apt-get -qqy update && apt-get -qqy install --no-install-recommends libgmp10 openssl
+COPY --from=build-spasm /usr/bin/spasm /usr/bin
