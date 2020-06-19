@@ -1,9 +1,9 @@
 #![allow(non_snake_case)]
 
+use super::test_flag;
 use crate::display::ScrollDirection;
 use crate::include::tios;
-use crate::{Emulator, Z80, Flags};
-use super::test_flag;
+use crate::{Emulator, Flags, Z80};
 
 pub fn HomeUp(emu: &mut Emulator) -> usize {
     emu.mem[tios::curCol] = 0;
@@ -47,7 +47,7 @@ fn put_char_scrolling(emu: &mut Emulator, cpu: &Z80, c: u8) {
 
     put_char(emu, c, x, y);
     x += 1;
-    if x >= 15 {
+    if x > 15 {
         let should_scroll = test_flag(emu, cpu, tios::appFlags, tios::appAutoScroll);
 
         // Going offscreen without scrolling clamps to the bottom right corner
@@ -92,7 +92,7 @@ static LARGE_FONT: &[u8] = include_bytes!("lgfont.bin");
 
 pub fn DispHL(emu: &mut Emulator, core: &mut Z80) -> usize {
     let s = format!("{:5}", core.regs().hl);
-    emu.mem[tios::OP1..tios::OP1+5].copy_from_slice(s.as_bytes());
+    emu.mem[tios::OP1..tios::OP1 + 5].copy_from_slice(s.as_bytes());
 
     let row = emu.mem[tios::curRow];
     let start_col = std::cmp::min(emu.mem[tios::curCol], 15);
@@ -116,12 +116,7 @@ fn put_char_small(emu: &mut Emulator, c: u8, col: u8, row: u8) -> u8 {
 pub fn VPutMap(emu: &mut Emulator, core: &mut Z80) -> usize {
     // TODO handle textInverse, textEraseBelow, textWrite and fracDrawLFont flags
     let mut x = emu.mem[tios::penCol];
-    let width = put_char_small(
-        emu,
-        core.regs().get_a(),
-        x,
-        emu.mem[tios::penRow],
-    );
+    let width = put_char_small(emu, core.regs().get_a(), x, emu.mem[tios::penRow]);
 
     x = x.wrapping_add(width);
     emu.mem[tios::penCol] = x;
