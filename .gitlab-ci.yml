@@ -1,0 +1,11 @@
+
+build:
+  image: tari/tihle-build:latest
+  script:
+  - make -C os
+  - cargo test
+  - cargo build --bins --release --locked --target=wasm32-unknown-emscripten
+  artifacts:
+    paths:
+    - target/wasm32-unknown-emscripten/release/
+# TODO also build a Windows binary
