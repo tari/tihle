@@ -5,9 +5,14 @@ RUN git clone --depth=1 https://github.com/alberthdev/spasm-ng.git
 RUN make -C spasm-ng -j$(nproc) && make -C spasm-ng DESTDIR=/usr install
 
 FROM emscripten/emsdk
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-        sh -s -- -t wasm32-unknown-emscripten,x86_64-pc-windows-gnu -y | \
-        echo 'export PATH="${HOME}/.cargo/bin:${PATH}"' >> "${HOME}/.bashrc"
-# spasm and its dependencies
-RUN apt-get -qqy update && apt-get -qqy install --no-install-recommends libgmp10 openssl
+# Rustup global setup borrowed from official image (rust-lang/docker-rust)
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path && \
+    ln -s -t /usr/local/bin /usr/local/cargo/bin/* && \
+    rustup target add wasm32-unknown-emscripten x86_64-pc-windows-gnu
+RUN apt-get -qqy update && apt-get -qqy install --no-install-recommends \
+        libgmp10 openssl libsdl2-dev && \
+    rm -rf /var/lib/apt/lists/*
 COPY --from=build-spasm /usr/bin/spasm /usr/bin

@@ -3,7 +3,7 @@ build:
   image: tari/tihle-build:latest
   script:
   - make -C os
-  - cargo test
+  - cargo test --locked
   - cargo build --bins --release --locked --target=wasm32-unknown-emscripten
   artifacts:
     paths:
