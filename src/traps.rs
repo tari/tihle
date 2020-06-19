@@ -1,7 +1,7 @@
 use super::bcalls;
-use crate::{Emulator, Z80};
-use crate::bcalls::{test_flag, set_flag};
+use crate::bcalls::{set_flag, test_flag};
 use crate::include::tios;
+use crate::{Emulator, Z80};
 
 /// Defined emulator traps.
 ///
@@ -59,7 +59,7 @@ impl Trap {
                     emu.mem[tios::kbdScanCode] = k as u8;
                 }
 
-                400     // :shrug:
+                400 // :shrug:
             }
 
             PutMap => bcalls::display::PutMap(emu, core),

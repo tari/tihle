@@ -16,8 +16,7 @@ const RAM_ADDRS: std::ops::RangeInclusive<u16> = 0x8000..=0xFFFF;
 
 impl Memory {
     pub fn new<'i, I: 'i + IntoIterator<Item = &'i (u8, &'i [u8])>>(flash_pages: I) -> Self {
-        let mut flash: Box<_> =
-            vec![[0u8; 0x4000]; FLASH_PAGES as usize].into_boxed_slice();
+        let mut flash: Box<_> = vec![[0u8; 0x4000]; FLASH_PAGES as usize].into_boxed_slice();
         for (page, contents) in flash_pages {
             flash[*page as usize][..contents.len()].copy_from_slice(contents);
         }

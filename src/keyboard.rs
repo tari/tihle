@@ -93,7 +93,7 @@ impl Keyboard {
     }
 
     pub fn key_up(&mut self, key: Key) {
-        self.keys_up[key_group(key)] |= (1 << key_bit(key));
+        self.keys_up[key_group(key)] |= 1 << key_bit(key);
     }
 
     /// Write the keyboard port (1).
@@ -133,13 +133,14 @@ impl Keyboard {
                         // Multiple keys are pressed
                         return None;
                     }
-                    scan_code = Some(Key::from_u8((8 * group_idx as u8) + bit + 1)
-                        .unwrap());
+                    scan_code = Some(Key::from_u8((8 * group_idx as u8) + bit + 1).unwrap());
                 }
             }
         }
 
-        let can_repeat = scan_code.map(|k| REPEATABLE_KEYS.contains(&k)).unwrap_or(false);
+        let can_repeat = scan_code
+            .map(|k| REPEATABLE_KEYS.contains(&k))
+            .unwrap_or(false);
         if self.last_scan == scan_code {
             if !can_repeat {
                 // Ignore held non-repeating key, or nothing being pressed

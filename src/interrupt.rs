@@ -83,7 +83,8 @@ impl InterruptController {
             self.timer1_last = now;
         }
 
-        let pending = (self.timer1_pending && self.timer1_enabled) || (self.on_pending && self.on_enabled);
+        let pending =
+            (self.timer1_pending && self.timer1_enabled) || (self.on_pending && self.on_enabled);
         let next = if self.timer1_enabled {
             // last + period if it's not in the past, otherwise now + period
             // as a lower bound for the next one.
@@ -96,7 +97,11 @@ impl InterruptController {
             None
         };
 
-        trace!("Interrupt controller polled: IRQ pending={}, next timer in {:?}", pending, next);
+        trace!(
+            "Interrupt controller polled: IRQ pending={}, next timer in {:?}",
+            pending,
+            next
+        );
         (pending, next)
     }
 
@@ -122,7 +127,11 @@ impl InterruptController {
 
         self.timer1_enabled = value.contains(InterruptFlags::TIMER1);
         self.timer1_pending &= self.timer1_enabled;
-        trace!("Wrote port 3; timer1 enabled={} pending={}", self.timer1_enabled, self.timer1_pending);
+        trace!(
+            "Wrote port 3; timer1 enabled={} pending={}",
+            self.timer1_enabled,
+            self.timer1_pending
+        );
     }
 
     // Read port 4, getting the pending flags.
@@ -139,7 +148,7 @@ impl InterruptController {
     }
 }
 
-bitflags!{
+bitflags! {
     struct InterruptFlags: u8 {
         const ON = 0x01;
         const TIMER1 = 0x02;
