@@ -18,6 +18,7 @@ stages:
 
 test:
   script:
+  - make -C os
   - cargo test --locked
 
 
