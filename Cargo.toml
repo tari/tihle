@@ -30,6 +30,7 @@ sdl2 = { version = "0.34" }
 
 [build-dependencies]
 cc = "1.0"
+walkdir = "2"
 
 [dev-dependencies]
 quickcheck = { version = "0.9.1", default-features = false, features = ["use_logging"] }
