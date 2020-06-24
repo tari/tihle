@@ -31,7 +31,8 @@ extern crate quickcheck_macros;
 
 use num_traits::FromPrimitive;
 use std::cell::Cell;
-use std::time::{Duration, Instant};
+use std::convert::TryInto;
+use std::time::Duration;
 
 /*
 
@@ -88,6 +89,7 @@ pub mod include {
     pub mod tios;
 }
 
+pub use display::Display;
 pub use interrupt::InterruptController;
 pub use memory::Memory;
 pub use z80::{Flags, Z80};
@@ -96,10 +98,8 @@ pub struct Emulator {
     clock_rate: u32,
     pub mem: Memory,
     pub interrupt_controller: InterruptController,
-    pub display: display::Display,
+    pub display: Display,
     pub keyboard: keyboard::Keyboard,
-
-    target_framerate: u32,
     /// If true, emulation has terminated.
     terminate: Cell<bool>,
 }
@@ -112,16 +112,18 @@ static FLASH_IMAGE: &[(u8, &[u8])] = &[
 ];
 
 impl Emulator {
+    /// Construct a new emulator.
+    ///
+    /// Initially the CPU is terminated; call [load_program] to start the
+    /// CPU so calls to [run] will run the CPU.
     pub fn new() -> Self {
         Emulator {
             clock_rate: 6_000_000,
             mem: Memory::new(FLASH_IMAGE),
             interrupt_controller: InterruptController::new(),
-            display: display::Display::new(),
+            display: Display::new(),
             keyboard: keyboard::Keyboard::new(),
-
-            target_framerate: 60,
-            terminate: Cell::new(false),
+            terminate: Cell::new(true),
         }
     }
 
@@ -142,16 +144,23 @@ impl Emulator {
     fn duration_to_cycles(&self, duration: Duration) -> usize {
         let cycle_secs = 1.0 / self.clock_rate as f64;
 
-        (duration.as_secs_f64() / cycle_secs) as usize
+        // Running for very short intervals might be less than a cycle; always run
+        // at least 1 cycle.
+        (duration.as_secs_f64() / cycle_secs).ceil() as usize
     }
 
-    pub fn run(&mut self, cpu: &mut Z80, frame_start: &Instant) -> f32 {
-        let frame_duration = Duration::from_nanos(1e9 as u64 / self.target_framerate as u64);
+    fn cycles_to_duration(&self, cycles: usize) -> Duration {
+        let cycle_time = Duration::from_secs(1) / self.clock_rate;
 
+        cycle_time * cycles.try_into().unwrap()
+    }
+
+    /// Run the emulator for up to `max_step`, returning the amount of time
+    /// the emulated CPU ran for.
+    pub fn run(&mut self, cpu: &mut Z80, max_step: Duration) -> Duration {
         if !self.is_running() {
-            debug!("CPU terminated, sleeping for a frame");
-            std::thread::sleep(frame_duration);
-            return 1.0;
+            debug!("CPU terminated, doing nothing");
+            return Duration::from_secs(0);
         }
 
         let (irq_pending, until_next_interrupt) = self.interrupt_controller.poll();
@@ -161,50 +170,36 @@ impl Emulator {
         );
         cpu.set_irq(irq_pending);
 
-        // Run the CPU for a frame or until the next interrupt,
+        // Run the CPU for the requested time or until the next interrupt,
         // whichever is sooner.
         // TODO: this won't handle enabling interrupts while running;
         // the core needs to be able to break based on requests from
-        // callbacks to do this accurately. Seems like it needs a few
-        // extra hooks, like one for fetching instructions mostly that
-        // can say "pretend this took a while" or "stop running so the
-        // caller can do some work for us."
+        // callbacks to do this accurately.
         let step_duration = match until_next_interrupt {
-            None => frame_duration,
-            Some(t) => std::cmp::min(frame_duration, t),
+            None => max_step,
+            Some(t) => std::cmp::min(max_step, t),
         };
 
-        if cpu.is_halted() || self.terminate.get() {
-            trace!("CPU halted, sleep {:?}", step_duration);
-            std::thread::sleep(step_duration);
-            1.0
-        } else {
-            trace!(
-                "Run CPU for {:?} ({} cycles)",
-                step_duration,
-                self.duration_to_cycles(step_duration)
-            );
-            cpu.run(self.duration_to_cycles(step_duration), self);
-
-            // The CPU ran, and probably ran faster than real time; wait until
-            // wall time catches up.
-            let step_elapsed = frame_start.elapsed();
-            if let Some(t) = step_duration.checked_sub(step_elapsed) {
-                trace!("CPU {:?} ahead; sleeping to catch up", t);
-                std::thread::sleep(t);
-            } else {
-                warn!(
-                    "Running slowly: emulating {}ms took {}ms on the wall",
-                    step_duration.as_millis(),
-                    step_elapsed.as_millis()
-                );
-            }
-
-            // Return the current time vs the intended runtime
-            frame_start.elapsed().as_secs_f32() / step_duration.as_secs_f32()
+        if cpu.is_halted() {
+            debug!("CPU halted, wait for interrupt");
+            return step_duration;
         }
+
+        debug!(
+            "Run CPU for {:?} ({} cycles)",
+            step_duration,
+            self.duration_to_cycles(step_duration)
+        );
+        let cycles_run = cpu.run(self.duration_to_cycles(step_duration), self);
+        self.cycles_to_duration(cycles_run)
     }
 
+    /// Load an 8xp-format program from the given reader.
+    ///
+    /// The program will be loaded at 9D95 with the CPU set to begin execution there,
+    /// and the system state will be set up consistent with the detected type of program
+    /// (such as setting up the context for the appropriate shell). The emulator
+    /// will be reset so [run] will run the CPU.
     pub fn load_program<R: std::io::Read>(
         &mut self,
         cpu: &mut Z80,
@@ -264,6 +259,7 @@ impl Emulator {
         // Map Mirage into bank A
         self.mem.set_bank_a_page(4);
 
+        self.terminate.set(false);
         Ok(var)
     }
 
