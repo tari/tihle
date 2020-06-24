@@ -272,6 +272,11 @@ impl Emulator {
         // IY points to flags
         regs.iy = tios::flags;
 
+        // All flags are reset
+        for addr in tios::flags..tios::flags + 0x46 {
+            self.mem[addr] = 0;
+        }
+
         // The VAT is empty
         self.mem.write_u16(tios::progPtr, tios::symTable);
         self.mem.write_u16(tios::pTemp, tios::symTable);

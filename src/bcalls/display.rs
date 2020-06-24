@@ -50,18 +50,18 @@ fn put_char_scrolling(emu: &mut Emulator, cpu: &Z80, c: u8) {
     if x > 15 {
         let should_scroll = test_flag(emu, cpu, tios::appFlags, tios::appAutoScroll);
 
-        // Going offscreen without scrolling clamps to the bottom right corner
-        // and stops displaying chars.
-        if !should_scroll {
-            emu.mem[tios::curCol] = 15;
-            return;
-        }
-
         x = 0;
         y += 1;
         if y >= 7 {
-            y = 6;
-            emu.display.scroll(ScrollDirection::Up, 8);
+            if should_scroll {
+                y = 6;
+                emu.display.scroll(ScrollDirection::Up, 8);
+            } else {
+                // Going offscreen without scrolling clamps to the bottom right corner
+                // and stops displaying chars.
+                y = 7;
+                x = std::cmp::min(x, 15);
+            }
         }
     }
 
@@ -77,12 +77,7 @@ fn put_char(emu: &mut Emulator, c: u8, col: u8, row: u8) {
         row
     );
     let char_index = c as usize * 7;
-    debug!(
-        "Display char {:02x} @ {}: data = {:?}",
-        c,
-        char_index,
-        &LARGE_FONT[char_index..char_index + 7]
-    );
+    debug!("Display char {:02x} @ ({},{})", c, col, row);
 
     emu.display
         .blit_8bit_over(col * 6, row * 8, &LARGE_FONT[char_index..char_index + 7], 6);
