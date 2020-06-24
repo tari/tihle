@@ -150,9 +150,7 @@ impl Emulator {
     }
 
     fn cycles_to_duration(&self, cycles: usize) -> Duration {
-        let cycle_time = Duration::from_secs(1) / self.clock_rate;
-
-        cycle_time * cycles.try_into().unwrap()
+        Duration::from_secs_f64(cycles as f64 / self.clock_rate as f64)
     }
 
     /// Run the emulator for up to `max_step`, returning the amount of time
