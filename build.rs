@@ -1,10 +1,11 @@
 fn main() {
     rerun_if_changed("os/");
-    std::process::Command::new("make")
+    if let Err(e) = std::process::Command::new("make")
         .arg("-C")
         .arg("os")
-        .status()
-        .expect("Failed to run make to build OS");
+        .status() {
+        println!("cargo:warning=Failed to run make to build OS; compilation may fail: {}", e);
+    }
 
     rerun_if_changed("third_party/redcode/");
     cc::Build::new()
