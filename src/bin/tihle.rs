@@ -31,6 +31,7 @@ impl Window {
             .accelerated()
             .build()
             .expect("Failed to build WindowCanvas");
+        info!("Renderer set up: {:?}", canvas.info());
 
         Self {
             texture_creator: canvas.texture_creator(),
@@ -55,7 +56,14 @@ struct Video<'a> {
     /// Read the emulator display and write to this, then update texture with the contents;
     /// necessary because we do a manual format conversion from the emulator format to the
     /// texture format.
-    texture_buf: Box<[u8; Display::ROWS * Display::COLS * 3]>,
+    ///
+    /// The texture format used is YV12; since we really only need greyscale output, YV12
+    /// is a good choice because it provides good locality for luminance (because it's planar
+    /// rather than interleaved) and doesn't waste space on the chroma channels that we don't
+    /// need. It's also widely supported by hardware accelerators.
+    texture_buf: Box<
+        [u8; (Display::ROWS * Display::COLS) + ((Display::ROWS / 2) * (Display::COLS / 2) * 2)],
+    >,
 }
 
 impl<'a> Video<'a> {
@@ -66,9 +74,13 @@ impl<'a> Video<'a> {
         } = window;
 
         let texture = texture_creator
-            .create_texture_streaming(PixelFormatEnum::RGB24, 96, 64)
+            .create_texture_streaming(PixelFormatEnum::YV12, 96, 64)
             .unwrap();
-        let texture_buf = Box::new([0u8; Display::ROWS * Display::COLS * 3]);
+        let mut texture_buf = Box::new([0u8; 9216]);
+        // Initialize chroma planes to neutral, and we won't touch them again
+        for byte in texture_buf[Display::ROWS * Display::COLS..].iter_mut() {
+            *byte = 128;
+        }
 
         let rect = {
             let window_size = canvas.output_size().expect("Unable to get window size");
@@ -84,19 +96,17 @@ impl<'a> Video<'a> {
     }
 
     fn update(&mut self, display: &Display) {
-        for (&src, dst) in display
-            .get_buffer()
-            .iter()
-            .zip(self.texture_buf.chunks_exact_mut(3))
-        {
+        // Simple YV12 conversion: write luminance bytes and leave chroma untouched
+        for (&src, dst) in display.get_buffer().iter().zip(self.texture_buf.iter_mut()) {
             if src != 0 {
-                dst.copy_from_slice(&[0, 0, 0]);
+                *dst = 0;
             } else {
-                dst.copy_from_slice(&[0xFF, 0xFF, 0xFF]);
+                *dst = 0xFF;
             }
         }
+
         self.texture
-            .update(None, &self.texture_buf[..], Display::COLS * 3)
+            .update(None, &self.texture_buf[..], Display::COLS)
             .expect("Failed to update texture while rendering");
 
         self.canvas
