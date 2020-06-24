@@ -13,6 +13,7 @@ VECTOR(_VPutS, 1, $4018)
 VECTOR(_GrBufCpu, 1, $401b)
 VECTOR(_MemSet, 1, $401e)
 VECTOR(_GetCSC, 1, $4021)
+VECTOR(_DivHLBy10, 1, $4024)
 
 ; Ensure vector table isn't truncated
 .seek $4000

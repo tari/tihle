@@ -2,6 +2,7 @@ use crate::{Emulator, Z80};
 
 pub mod display;
 pub mod memory;
+pub mod util;
 
 const VECTOR_TABLE_PAGE: u8 = 0x1B;
 

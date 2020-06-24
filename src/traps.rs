@@ -17,6 +17,7 @@ pub enum Trap {
     RomCallReturn = 2,
     OsInterrupt = 3,
 
+    DivHLBy10 = 0x400F,
     PutMap = 0x4501,
     PutC = 0x4504,
     DispHL = 0x4507,
@@ -62,6 +63,7 @@ impl Trap {
                 400 // :shrug:
             }
 
+            DivHLBy10 => bcalls::util::DivHLBy10(emu, core),
             PutMap => bcalls::display::PutMap(emu, core),
             PutC => bcalls::display::PutC(emu, core),
             DispHL => bcalls::display::DispHL(emu, core),

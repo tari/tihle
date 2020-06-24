@@ -18,6 +18,7 @@
     jp GrBufCpu ; 401b
     jp MemSet   ; 401e
     jp GetCSC   ; 4021
+    jp DivHLBy10    ; 4024
 
 #include "ti83plus.inc"
 #include "tihle-os.inc"
@@ -88,3 +89,4 @@ HomeUp: trap _HomeUP \ ret
 VPutMap: trap _VPutMap \ ret
 GrBufCpu: trap _GrBufCpy \ ret
 MemSet: trap _MemSet \ ret
+DivHLBy10: trap _DivHLBy10 \ ret
