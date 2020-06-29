@@ -134,14 +134,16 @@ mod emscripten {
     use std::ffi::c_void;
     #[allow(non_camel_case_types)]
     type c_int = i32;
+    #[allow(non_camel_case_types)]
+    pub type EM_BOOL = c_int;
 
     extern "C" {
-        fn emscripten_request_animation_frame_loop(
-            func: extern "C" fn(millis: f64, user_data: *mut c_void) -> c_int,
+        pub fn emscripten_request_animation_frame_loop(
+            func: extern "C" fn(millis: f64, user_data: *mut c_void) -> EM_BOOL,
             arg: *mut c_void,
         );
 
-        fn emscripten_throw_string(utf8_string: *const u8);
+        pub fn emscripten_throw_string(utf8_string: *const u8);
     }
 }
 
