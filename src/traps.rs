@@ -63,7 +63,7 @@ impl Trap {
                 400 // :shrug:
             }
 
-            DivHLBy10 => bcalls::util::DivHLBy10(emu, core),
+            DivHLBy10 => bcalls::util::DivHLBy10(core),
             PutMap => bcalls::display::PutMap(emu, core),
             PutC => bcalls::display::PutC(emu, core),
             DispHL => bcalls::display::DispHL(emu, core),

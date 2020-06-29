@@ -1,8 +1,8 @@
 #![allow(non_snake_case)]
 
-use crate::{Emulator, Z80};
+use crate::Z80;
 
-pub fn DivHLBy10(emu: &mut Emulator, cpu: &mut Z80) -> usize {
+pub fn DivHLBy10(cpu: &mut Z80) -> usize {
     let regs = cpu.regs_mut();
 
     let quotient = regs.hl / 10;

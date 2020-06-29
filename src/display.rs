@@ -289,11 +289,7 @@ impl Display {
     pub fn write_data(&mut self, data: u8) {
         debug!(
             "LCD data write {:02X} to ({},{}) {:?} {:?}",
-            data,
-            self.addr_y,
-            self.addr_x,
-            self.word_mode,
-            self.auto_address_mode,
+            data, self.addr_y, self.addr_x, self.word_mode, self.auto_address_mode,
         );
 
         let word_size = self.word_mode.word_size();
@@ -337,11 +333,7 @@ impl Display {
             let out = pack_byte(u64::from_be_bytes(bytes));
             debug!(
                 "LCD data read {:02X} from ({},{}) {:?} {:?}",
-                out,
-                self.addr_y,
-                self.addr_x,
-                self.word_mode,
-                self.auto_address_mode,
+                out, self.addr_y, self.addr_x, self.word_mode, self.auto_address_mode,
             );
 
             out

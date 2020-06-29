@@ -3,8 +3,12 @@ fn main() {
     if let Err(e) = std::process::Command::new("make")
         .arg("-C")
         .arg("os")
-        .status() {
-        println!("cargo:warning=Failed to run make to build OS; compilation may fail: {}", e);
+        .status()
+    {
+        println!(
+            "cargo:warning=Failed to run make to build OS; compilation may fail: {}",
+            e
+        );
     }
 
     rerun_if_changed("third_party/redcode/");

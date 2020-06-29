@@ -105,7 +105,10 @@ impl Z80 {
     /// The provided `Ctx` is passed to traps for access to higher-level
     /// system state.
     pub fn run(&mut self, cycles: usize, ctx: &mut Emulator) -> usize {
-        debug_assert!(cycles > 0, "Running the CPU for zero cycles doesn't make sense");
+        debug_assert!(
+            cycles > 0,
+            "Running the CPU for zero cycles doesn't make sense"
+        );
         // Safe: we pass mutable refs down into the core, which effecitvely
         // passes them back to callbacks by copying the parameter it receives;
         // there is no aliasing because it's just copying refs it has down to

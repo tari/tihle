@@ -147,7 +147,7 @@ mod emscripten {
     }
 }
 
-#[cfg(not(target_os="emscripten"))]
+#[cfg(not(target_os = "emscripten"))]
 mod emscripten {
     use std::ffi::c_void;
     #[allow(non_camel_case_types)]
@@ -155,14 +155,14 @@ mod emscripten {
     #[allow(non_camel_case_types)]
     pub type EM_BOOL = c_int;
 
-    pub fn emscripten_request_animation_frame_loop(
+    pub unsafe fn emscripten_request_animation_frame_loop(
         _func: extern "C" fn(millis: f64, user_data: *mut c_void) -> EM_BOOL,
-        _arg: *mut c_void
+        _arg: *mut c_void,
     ) {
         unreachable!("Should only be called for emscripten targets")
     }
 
-    pub fn emscripten_throw_string(_utf8_string: *const u8) {
+    pub unsafe fn emscripten_throw_string(_utf8_string: *const u8) {
         unreachable!("Should only be called for emscripten targets")
     }
 }
@@ -207,30 +207,45 @@ fn main() {
             // any live stack allocations to the static lifetime.
             let state: &mut State<'static> = unsafe { &mut *(user_data as *mut State) };
             let frame_time = match state.0 {
-                Some(prev_millis) => {
-                    Duration::from_secs_f64((millis - prev_millis) / 1000.0)
-                },
+                Some(prev_millis) => Duration::from_secs_f64((millis - prev_millis) / 1000.0),
                 ref mut x @ None => {
                     *x = Some(millis);
                     return 1;
                 }
             };
 
-            iterate_main(frame_time, &mut state.1, &mut state.2, &mut state.3, &mut state.4);
+            iterate_main(
+                frame_time,
+                &mut state.1,
+                &mut state.2,
+                &mut state.3,
+                &mut state.4,
+            );
             1
         }
-        emscripten::emscripten_request_animation_frame_loop(wrap_iterate, &mut state as *mut State as *mut _);
-        // Same behavior as emscripten_set_main_loop(simulate_infinite_loop=true): break out
-        // back into the browser event loop never to return, but don't unwind the stack
-        // so locals remain live.
-        emscripten::emscripten_throw_string(b"SimulateInfiniteLoop\0".as_ptr());
+        unsafe {
+            emscripten::emscripten_request_animation_frame_loop(
+                wrap_iterate,
+                &mut state as *mut State as *mut _,
+            );
+            // Same behavior as emscripten_set_main_loop(simulate_infinite_loop=true): break out
+            // back into the browser event loop never to return, but don't unwind the stack
+            // so locals remain live.
+            emscripten::emscripten_throw_string(b"unwind\0".as_ptr());
+        }
         unreachable!();
     }
 
     let target_frame_time = Duration::from_secs(1) / 60;
     loop {
         let frame_start = Instant::now();
-        if iterate_main(target_frame_time, &mut video, &mut events, &mut emulator, &mut cpu) {
+        if iterate_main(
+            target_frame_time,
+            &mut video,
+            &mut events,
+            &mut emulator,
+            &mut cpu,
+        ) {
             break;
         }
 
@@ -240,8 +255,11 @@ fn main() {
         // where we don't know the framerate.
         match target_frame_time.checked_sub(frame_start.elapsed()) {
             None => {
-                warn!("Running slowly: emulating {:?} took {:?}", target_frame_time, elapsed);
-            },
+                warn!(
+                    "Running slowly: emulating {:?} took {:?}",
+                    target_frame_time, elapsed
+                );
+            }
             Some(wait) => {
                 std::thread::sleep(wait);
             }
@@ -255,7 +273,7 @@ fn load_program(emulator: &mut Emulator, mut cpu: &mut Z80, path: &str) {
             if let Err(e) = emulator.load_program(&mut cpu, f) {
                 error!("Failed to load program from {}: {:?}", path, e);
             }
-        },
+        }
         Err(e) => {
             error!("Unable to open {} to load: {}", path, e);
         }
@@ -322,7 +340,9 @@ fn iterate_main(
             debug!("Run CPU for up to {:?}", frame_time);
             let emulated_duration = emu.run(cpu, frame_time);
             debug!("CPU ran for {:?}", emulated_duration);
-            frame_time = frame_time.checked_sub(emulated_duration).unwrap_or(ZERO_TIME);
+            frame_time = frame_time
+                .checked_sub(emulated_duration)
+                .unwrap_or(ZERO_TIME);
         }
     }
 

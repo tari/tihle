@@ -31,7 +31,6 @@ extern crate quickcheck_macros;
 
 use num_traits::FromPrimitive;
 use std::cell::Cell;
-use std::convert::TryInto;
 use std::time::Duration;
 
 /*
