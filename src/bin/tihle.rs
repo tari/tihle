@@ -67,6 +67,8 @@ struct Video<'a> {
 }
 
 impl<'a> Video<'a> {
+    const PIXEL_FORMAT: PixelFormatEnum = PixelFormatEnum::YV12;
+
     fn setup(window: &'a mut Window) -> Self {
         let Window {
             ref mut texture_creator,
@@ -74,7 +76,7 @@ impl<'a> Video<'a> {
         } = window;
 
         let texture = texture_creator
-            .create_texture_streaming(PixelFormatEnum::YV12, 96, 64)
+            .create_texture_streaming(Self::PIXEL_FORMAT, 96, 64)
             .unwrap();
         let mut texture_buf = Box::new([0u8; 9216]);
         // Initialize chroma planes to neutral, and we won't touch them again
@@ -106,7 +108,11 @@ impl<'a> Video<'a> {
         }
 
         self.texture
-            .update(None, &self.texture_buf[..], Display::COLS)
+            .update(
+                None,
+                &self.texture_buf[..],
+                Self::PIXEL_FORMAT.byte_size_of_pixels(Display::COLS),
+            )
             .expect("Failed to update texture while rendering");
 
         self.canvas
