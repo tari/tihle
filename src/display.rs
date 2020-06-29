@@ -126,9 +126,9 @@ impl Display {
         use ScrollDirection::*;
         match direction {
             Up => {
-                for dst_row in (0..(Self::ROWS - count)).rev() {
-                    let (dst, src) = rows.split_at_mut(dst_row);
-                    dst[dst_row].copy_from_slice(src[count]);
+                for (src_idx, dst_idx) in (count..Self::ROWS).zip(0..Self::ROWS - count) {
+                    let (dst, src) = rows.split_at_mut(src_idx);
+                    dst[dst_idx].copy_from_slice(src[0]);
                 }
                 for clear_row in (Self::ROWS - count)..Self::ROWS {
                     for value in rows[clear_row].iter_mut() {
@@ -137,9 +137,11 @@ impl Display {
                 }
             }
             Down => {
-                for dst_row in count..Self::ROWS {
-                    let (src, dst) = rows.split_at_mut(dst_row - 1);
-                    dst[0].copy_from_slice(src[dst_row - count]);
+                for (src_idx, dst_idx) in
+                    (0..Self::ROWS - count).rev().zip((count..Self::ROWS).rev())
+                {
+                    let (src, dst) = rows.split_at_mut(dst_idx);
+                    dst[0].copy_from_slice(src[src_idx]);
                 }
                 for clear_row in 0..count {
                     for value in rows[clear_row].iter_mut() {
@@ -376,6 +378,8 @@ fn pack_byte(x: u64) -> u8 {
 
 #[cfg(test)]
 mod tests {
+    use super::{Display, ScrollDirection};
+
     #[quickcheck]
     fn expand_byte_expands(x: u8) {
         let expanded = super::expand_byte(x).to_le_bytes();
@@ -390,5 +394,72 @@ mod tests {
     #[quickcheck]
     fn expand_then_pack_is_lossless(x: u8) {
         assert_eq!(x, super::pack_byte(super::expand_byte(x)));
+    }
+
+    fn setup_scrolling() -> Display {
+        let mut display = Display::new();
+        // Make each row say its original index
+        for (i, row) in display.as_rows().iter_mut().enumerate() {
+            for byte in row.iter_mut() {
+                *byte = i as u8;
+            }
+        }
+
+        display
+    }
+
+    #[quickcheck]
+    fn scroll_up(distance: usize) {
+        let mut display = setup_scrolling();
+        display.scroll(ScrollDirection::Up, distance);
+        let clamped = std::cmp::min(distance, Display::ROWS);
+
+        for (i, row) in display
+            .as_rows()
+            .iter()
+            .enumerate()
+            .take(Display::ROWS - clamped)
+        {
+            assert!(
+                row.iter().all(|&b| b == (i + clamped) as u8),
+                "Row {} should have value {}, found {}",
+                i,
+                i + clamped,
+                row[0]
+            );
+        }
+        for i in (Display::ROWS - clamped)..Display::ROWS {
+            assert!(
+                display.as_rows()[i].iter().all(|&b| b == 0),
+                "Row {} should be all zeroes, found {}",
+                i,
+                display.as_rows()[i][0]
+            );
+        }
+    }
+
+    #[quickcheck]
+    fn scroll_down(distance: usize) {
+        let mut display = setup_scrolling();
+        display.scroll(ScrollDirection::Down, distance);
+        let clamped = std::cmp::min(distance, Display::ROWS);
+
+        for (i, row) in display.as_rows().iter().enumerate().skip(clamped) {
+            assert!(
+                row.iter().all(|&b| b == (i - distance) as u8),
+                "Row {} should have value {}, found {}",
+                i,
+                i - distance,
+                row[0]
+            );
+        }
+        for i in 0..clamped {
+            assert!(
+                display.as_rows()[i].iter().all(|&b| b == 0),
+                "Row {} should be all zeroes, found {}",
+                i,
+                display.as_rows()[i][0]
+            );
+        }
     }
 }
