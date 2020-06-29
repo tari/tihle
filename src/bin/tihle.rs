@@ -165,8 +165,22 @@ mod emscripten {
     }
 }
 
-fn main() {
+#[cfg(not(target_arch = "wasm32"))]
+fn init_log() {
     env_logger::init();
+}
+
+#[cfg(target_arch = "wasm32")]
+fn init_log() {
+    let _ = if cfg!(debug_assertions) {
+        console_log::init()
+    } else {
+        console_log::init_with_level(log::Level::Warn)
+    };
+}
+
+fn main() {
+    init_log();
 
     let sdl_context = sdl2::init().unwrap();
 
