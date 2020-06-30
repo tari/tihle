@@ -1,7 +1,7 @@
 //! The interrupt scheduler
 
 use bitflags::bitflags;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 /// Handles interrupts for the 83+.
 ///
@@ -27,7 +27,7 @@ use std::time::{Duration, Instant};
 /// each interrupt reads as whether that interrupt is pending.
 ///
 /// On write, bits 1 and 2 adjust the timer frequencies, where the default is
-/// ~120 Hz with timer1 only. See [the table on WikiTI](
+/// ~118 Hz with timer1 only. See [the table on WikiTI](
 /// https://wikiti.brandonw.net/index.php?title=83Plus:Ports:04) for precise
 /// values.
 ///
@@ -38,7 +38,7 @@ use std::time::{Duration, Instant};
 pub struct InterruptController {
     /// Timer 1 is normally enabled at about 120 Hz.
     timer1_period: Duration,
-    timer1_last: Instant,
+    timer1_remaining: Duration,
     timer1_enabled: bool,
     timer1_pending: bool,
 
@@ -48,9 +48,11 @@ pub struct InterruptController {
 
 impl InterruptController {
     pub fn new() -> Self {
+        let timer1_period = Duration::from_nanos(1e9 as u64 / 118);
+
         InterruptController {
-            timer1_period: Duration::from_nanos(1e9 as u64 / 140),
-            timer1_last: Instant::now(),
+            timer1_period,
+            timer1_remaining: timer1_period,
             timer1_enabled: true,
             timer1_pending: false,
 
@@ -67,6 +69,27 @@ impl InterruptController {
         self.timer1_pending || self.on_pending
     }
 
+    /// Update timers as if the system has run for the given duration.
+    ///
+    /// This function drives timers and should be called after any CPU run.
+    pub fn advance(&mut self, duration: Duration) {
+        debug!("Advance timers {:?}", duration);
+        if duration >= self.timer1_remaining {
+            // Interrupt becomes pending
+            self.timer1_pending = true;
+            debug!("Timer1 interrupt fires");
+
+            if duration >= (self.timer1_remaining + self.timer1_period) {
+                warn!("Timer step of {:?} overflowed and skipped timer interrupts", duration);
+                self.timer1_remaining = self.timer1_period;
+            } else {
+                self.timer1_remaining = self.timer1_period + self.timer1_remaining - duration;
+            }
+        } else {
+            self.timer1_remaining -= duration;
+        }
+    }
+
     /// Poll for pending interrupts.
     ///
     /// The application should call this periodically, ideally at least as
@@ -75,24 +98,10 @@ impl InterruptController {
     /// Returns whether any interrupts are pending (in which case the CPU IRQ
     /// line should be set), and the time until next interrupt, if known.
     pub fn poll(&mut self) -> (bool, Option<Duration>) {
-        // Update timer
-        let now = Instant::now();
-        let since_last_timer = now.saturating_duration_since(self.timer1_last);
-        if since_last_timer > self.timer1_period {
-            self.timer1_pending = true;
-            self.timer1_last = now;
-        }
-
         let pending =
             (self.timer1_pending && self.timer1_enabled) || (self.on_pending && self.on_enabled);
         let next = if self.timer1_enabled {
-            // last + period if it's not in the past, otherwise now + period
-            // as a lower bound for the next one.
-            Some(
-                self.timer1_period
-                    .checked_sub(since_last_timer)
-                    .unwrap_or(self.timer1_period),
-            )
+            Some(self.timer1_remaining)
         } else {
             None
         };

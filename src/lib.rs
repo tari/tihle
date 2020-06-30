@@ -188,7 +188,10 @@ impl Emulator {
             self.duration_to_cycles(step_duration)
         );
         let cycles_run = cpu.run(self.duration_to_cycles(step_duration), self);
-        self.cycles_to_duration(cycles_run)
+        let duration_run = self.cycles_to_duration(cycles_run);
+
+        self.interrupt_controller.advance(duration_run);
+        duration_run
     }
 
     /// Load an 8xp-format program from the given reader.
