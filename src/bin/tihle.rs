@@ -178,9 +178,9 @@ fn init_log() {
 #[cfg(target_arch = "wasm32")]
 fn init_log() {
     let _ = if cfg!(debug_assertions) {
-        console_log::init()
+        simple_logger::init_with_level(log::Level::Info)
     } else {
-        console_log::init_with_level(log::Level::Warn)
+        simple_logger::init_with_level(log::Level::Warn)
     };
 }
 
@@ -274,11 +274,11 @@ fn load_program(emulator: &mut Emulator, mut cpu: &mut Z80, path: &str) {
     match File::open(path) {
         Ok(f) => {
             if let Err(e) = emulator.load_program(&mut cpu, f) {
-                error!("Failed to load program from {}: {:?}", path, e);
+                error!("Failed to load program from {:?}: {:?}", path, e);
             }
         }
         Err(e) => {
-            error!("Unable to open {} to load: {}", path, e);
+            error!("Unable to open {:?} to load: {}", path, e);
         }
     }
 }

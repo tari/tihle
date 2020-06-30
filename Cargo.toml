@@ -27,11 +27,11 @@ num-derive = "0.3"
 num-traits = "0.2"
 sdl2 = { version = "0.34" }
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+[target.'cfg(not(target_os = "emscripten"))'.dependencies]
 env_logger = { version = "0.7.1", default-features = false, features = ["termcolor", "humantime", "atty"] }
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-console_log = "0.2"
+[target.'cfg(target_os = "emscripten")'.dependencies]
+simple_logger = { version = "1.6", default-features = false, features = ["chrono"] }
 
 [build-dependencies]
 cc = "1.0"
