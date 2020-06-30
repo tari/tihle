@@ -107,12 +107,15 @@ impl<'a> Video<'a> {
             }
         }
 
+        // PixelFormatEnum.byte_size* include all three planes so we don't have a convenient way
+        // to ask what the pitch is.
+        assert_eq!(
+            Self::PIXEL_FORMAT,
+            PixelFormatEnum::YV12,
+            "Texture pitch may need to change with pixel format"
+        );
         self.texture
-            .update(
-                None,
-                &self.texture_buf[..],
-                Self::PIXEL_FORMAT.byte_size_of_pixels(Display::COLS),
-            )
+            .update(None, &self.texture_buf[..], Display::COLS)
             .expect("Failed to update texture while rendering");
 
         self.canvas
