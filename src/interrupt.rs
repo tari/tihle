@@ -80,7 +80,10 @@ impl InterruptController {
             debug!("Timer1 interrupt fires");
 
             if duration >= (self.timer1_remaining + self.timer1_period) {
-                warn!("Timer step of {:?} overflowed and skipped timer interrupts", duration);
+                warn!(
+                    "Timer step of {:?} overflowed and skipped timer interrupts",
+                    duration
+                );
                 self.timer1_remaining = self.timer1_period;
             } else {
                 self.timer1_remaining = self.timer1_period + self.timer1_remaining - duration;

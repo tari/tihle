@@ -177,18 +177,18 @@ impl Emulator {
             Some(t) => std::cmp::min(max_step, t),
         };
 
-        if cpu.is_halted() {
-            debug!("CPU halted, wait for interrupt");
-            return step_duration;
-        }
-
-        debug!(
-            "Run CPU for {:?} ({} cycles)",
-            step_duration,
-            self.duration_to_cycles(step_duration)
-        );
-        let cycles_run = cpu.run(self.duration_to_cycles(step_duration), self);
-        let duration_run = self.cycles_to_duration(cycles_run);
+        let duration_run = if cpu.is_halted() && !irq_pending {
+            debug!("CPU halted, wait {:?} for interrupt", step_duration);
+            step_duration
+        } else {
+            debug!(
+                "Run CPU for {:?} ({} cycles)",
+                step_duration,
+                self.duration_to_cycles(step_duration)
+            );
+            let cycles_run = cpu.run(self.duration_to_cycles(step_duration), self);
+            self.cycles_to_duration(cycles_run)
+        };
 
         self.interrupt_controller.advance(duration_run);
         duration_run
@@ -302,10 +302,6 @@ impl Emulator {
         if self.mem.put(addr, value).is_err() {
             info!("{:#?}", core.regs());
         }
-    }
-
-    fn wait_for_interrupt(&mut self, _core: &mut Z80) {
-        unimplemented!()
     }
 
     fn write_io(&mut self, cpu: &mut Z80, port: u8, value: u8) {

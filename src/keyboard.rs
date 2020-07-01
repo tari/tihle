@@ -89,10 +89,12 @@ impl Keyboard {
     }
 
     pub fn key_down(&mut self, key: Key) {
+        trace!("Key down: {:?}", key);
         self.keys_up[key_group(key)] &= !(1 << key_bit(key));
     }
 
     pub fn key_up(&mut self, key: Key) {
+        trace!("Key up: {:?}", key);
         self.keys_up[key_group(key)] |= 1 << key_bit(key);
     }
 
@@ -117,6 +119,7 @@ impl Keyboard {
             }
         }
 
+        trace!("Keypad reads {:02X}", result);
         result
     }
 

@@ -2,7 +2,9 @@ INCLUDE_DIR := $(shell pwd)/include/
 SPASM := spasm
 SPASM_FLAGS := -T -I "$(INCLUDE_DIR)"
 
-all: displaytest.8xp helloworld.8xp keyrepeat.8xp phoenix.8xp
+AUTO_8XPS := $(addsuffix .8xp,$(basename $(wildcard *.asm)))
+
+all: phoenix.8xp $(AUTO_8XPS)
 
 .PHONY: clean
 

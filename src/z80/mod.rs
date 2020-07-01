@@ -33,7 +33,7 @@ impl Z80 {
                 port_in: Some(Self::handle_io_read),
                 port_out: Some(Self::handle_io_write),
                 int_data: Some(Self::handle_mode0_vector),
-                halt: Some(Self::handle_halt),
+                halt: None,
                 trap: Some(Self::handle_trap),
                 ..ffi::Z80::new()
             },
@@ -76,16 +76,6 @@ impl Z80 {
         emu.write_io(core, address as u8, value);
     }
 
-    extern "C" fn handle_halt(ctx: ffi::Ctx, halted: u8) {
-        if halted != 1 {
-            // Do nothing if resuming from halt
-            return;
-        }
-
-        let (core, emu) = unsafe { Self::ctx_from_ptr(ctx) };
-        emu.wait_for_interrupt(core);
-    }
-
     extern "C" fn handle_trap(ctx: ffi::Ctx, trap_no: u16) -> usize {
         let (core, emu) = unsafe { Self::ctx_from_ptr(ctx) };
         emu.trap(trap_no, core)
@@ -105,7 +95,7 @@ impl Z80 {
     /// The provided `Ctx` is passed to traps for access to higher-level
     /// system state.
     pub fn run(&mut self, cycles: usize, ctx: &mut Emulator) -> usize {
-        debug_assert!(
+        assert!(
             cycles > 0,
             "Running the CPU for zero cycles doesn't make sense"
         );

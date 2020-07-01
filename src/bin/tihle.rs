@@ -340,7 +340,7 @@ fn iterate_main(
         // Loop running the CPU to reach the target emulated time
         const ZERO_TIME: Duration = Duration::from_nanos(0);
         while frame_time != ZERO_TIME {
-            debug!("Run CPU for up to {:?}", frame_time);
+            debug!("Run CPU for up to {:?} to reach frame time", frame_time);
             let emulated_duration = emu.run(cpu, frame_time);
             debug!("CPU ran for {:?}", emulated_duration);
             frame_time = frame_time

@@ -43,9 +43,7 @@ impl Trap {
             RomCall => bcalls::bcall_trap(emu, core),
             RomCallReturn => bcalls::bcall_trap_return(emu, core),
             OsInterrupt => {
-                // The OS interrupt does a few things, none of which we
-                // implement right now:
-                //  * Keyboard scanning (call KbdScan)
+                // The OS interrupt does a few things which we don't implement right now:
                 //  * Run indicator
                 //  * Set onInterrupt,(onFlags) if ON is pressed
                 if test_flag(emu, core, tios::indicFlags, tios::indicOnly) {
