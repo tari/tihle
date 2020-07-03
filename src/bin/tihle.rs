@@ -338,17 +338,16 @@ fn iterate_main(
         }
     }
 
-    if emu.is_running() {
-        // Loop running the CPU to reach the target emulated time
-        const ZERO_TIME: Duration = Duration::from_nanos(0);
-        while frame_time != ZERO_TIME {
-            debug!("Run CPU for up to {:?} to reach frame time", frame_time);
-            let emulated_duration = emu.run(cpu, frame_time);
-            debug!("CPU ran for {:?}", emulated_duration);
-            frame_time = frame_time
-                .checked_sub(emulated_duration)
-                .unwrap_or(ZERO_TIME);
-        }
+    // Loop running the CPU to reach the target emulated time as long
+    // as we've haven't terminated.
+    const ZERO_TIME: Duration = Duration::from_nanos(0);
+    while emu.is_running() && frame_time != ZERO_TIME {
+        debug!("Run CPU for up to {:?} to reach frame time", frame_time);
+        let emulated_duration = emu.run(cpu, frame_time);
+        debug!("CPU ran for {:?}", emulated_duration);
+        frame_time = frame_time
+            .checked_sub(emulated_duration)
+            .unwrap_or(ZERO_TIME);
     }
 
     debug!("CPU run complete; swap display");
