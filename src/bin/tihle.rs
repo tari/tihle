@@ -209,10 +209,12 @@ fn main() {
             // Simulating an infinite loop effectively leaks the current stack, promoting
             // any live stack allocations to the static lifetime.
             let state: &mut State<'static> = unsafe { &mut *(user_data as *mut State) };
-            let frame_time = match state.0 {
+            // Get the time of the last frame and store the current time, computing
+            // the duration of the last frame.
+            let frame_time = match std::mem::replace(&mut state.0, Some(millis)) {
                 Some(prev_millis) => Duration::from_secs_f64((millis - prev_millis) / 1000.0),
-                ref mut x @ None => {
-                    *x = Some(millis);
+                None => {
+                    // If no data yet, store and wait one more frame.
                     return 1;
                 }
             };
