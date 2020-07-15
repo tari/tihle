@@ -5,9 +5,8 @@ use sdl2::pixels::PixelFormatEnum;
 use sdl2::rect::Rect;
 use sdl2::render::TextureCreator;
 use sdl2::video::WindowContext;
-use std::ffi::c_void;
 use std::fs::File;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tihle::{Display, Emulator, Z80};
 
 const DISPLAY_SCALE: usize = 4;
@@ -118,6 +117,10 @@ impl<'a> Video<'a> {
             .update(None, &self.texture_buf[..], Display::COLS)
             .expect("Failed to update texture while rendering");
 
+        // We update the whole canvas so clearing isn't strictly necessary, but usually
+        // has minimal cost and can improve performance on some hardware (especially
+        // tile-based renderers).
+        self.canvas.clear();
         self.canvas
             .copy(&self.texture, None, Some(self.rect))
             .expect("Failed to copy texture to window");
@@ -132,65 +135,16 @@ impl<'a> Video<'a> {
     }
 }
 
-#[cfg(target_os = "emscripten")]
-mod emscripten {
-    use std::ffi::c_void;
-    #[allow(non_camel_case_types)]
-    type c_int = i32;
-    #[allow(non_camel_case_types)]
-    pub type EM_BOOL = c_int;
-
-    extern "C" {
-        pub fn emscripten_request_animation_frame_loop(
-            func: extern "C" fn(millis: f64, user_data: *mut c_void) -> EM_BOOL,
-            arg: *mut c_void,
-        );
-
-        pub fn emscripten_throw_string(utf8_string: *const u8);
-    }
-}
-
 #[cfg(not(target_os = "emscripten"))]
-mod emscripten {
-    use std::ffi::c_void;
-    #[allow(non_camel_case_types)]
-    type c_int = i32;
-    #[allow(non_camel_case_types)]
-    pub type EM_BOOL = c_int;
-
-    pub unsafe fn emscripten_request_animation_frame_loop(
-        _func: extern "C" fn(millis: f64, user_data: *mut c_void) -> EM_BOOL,
-        _arg: *mut c_void,
-    ) {
-        unreachable!("Should only be called for emscripten targets")
-    }
-
-    pub unsafe fn emscripten_throw_string(_utf8_string: *const u8) {
-        unreachable!("Should only be called for emscripten targets")
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn init_log() {
-    env_logger::init();
-}
-
-#[cfg(target_arch = "wasm32")]
-fn init_log() {
-    let _ = if cfg!(debug_assertions) {
-        simple_logger::init_with_level(log::Level::Info)
-    } else {
-        simple_logger::init_with_level(log::Level::Warn)
-    };
-}
-
 fn main() {
-    init_log();
+    use std::time::Instant;
+
+    env_logger::init();
 
     let sdl_context = sdl2::init().unwrap();
 
     let video_subsystem = sdl_context.video().unwrap();
-    let mut window = Window::create(video_subsystem);
+    let mut window = Box::new(Window::create(video_subsystem));
     let mut video = Video::setup(&mut window);
     let mut events = sdl_context.event_pump().unwrap();
 
@@ -199,46 +153,6 @@ fn main() {
 
     if let Some(path) = std::env::args().skip(1).next() {
         load_program(&mut emulator, &mut cpu, &path);
-    }
-
-    if cfg!(target_os = "emscripten") {
-        type State<'a> = (Option<f64>, Video<'a>, sdl2::EventPump, Emulator, Z80);
-        let mut state: State<'_> = (None, video, events, emulator, cpu);
-
-        extern "C" fn wrap_iterate(millis: f64, user_data: *mut c_void) -> emscripten::EM_BOOL {
-            // Simulating an infinite loop effectively leaks the current stack, promoting
-            // any live stack allocations to the static lifetime.
-            let state: &mut State<'static> = unsafe { &mut *(user_data as *mut State) };
-            // Get the time of the last frame and store the current time, computing
-            // the duration of the last frame.
-            let frame_time = match std::mem::replace(&mut state.0, Some(millis)) {
-                Some(prev_millis) => Duration::from_secs_f64((millis - prev_millis) / 1000.0),
-                None => {
-                    // If no data yet, store and wait one more frame.
-                    return 1;
-                }
-            };
-
-            iterate_main(
-                frame_time,
-                &mut state.1,
-                &mut state.2,
-                &mut state.3,
-                &mut state.4,
-            );
-            1
-        }
-        unsafe {
-            emscripten::emscripten_request_animation_frame_loop(
-                wrap_iterate,
-                &mut state as *mut State as *mut _,
-            );
-            // Same behavior as emscripten_set_main_loop(simulate_infinite_loop=true): break out
-            // back into the browser event loop never to return, but don't unwind the stack
-            // so locals remain live.
-            emscripten::emscripten_throw_string(b"unwind\0".as_ptr());
-        }
-        unreachable!();
     }
 
     let target_frame_time = Duration::from_secs(1) / 60;
@@ -269,6 +183,107 @@ fn main() {
                 std::thread::sleep(wait);
             }
         }
+    }
+}
+
+#[cfg(target_os = "emscripten")]
+mod emscripten {
+    pub use std::ffi::c_void;
+    #[allow(non_camel_case_types)]
+    type c_int = i32;
+    #[allow(non_camel_case_types)]
+    pub type EM_BOOL = c_int;
+
+    extern "C" {
+        pub fn emscripten_request_animation_frame_loop(
+            func: extern "C" fn(millis: f64, user_data: *mut c_void) -> EM_BOOL,
+            arg: *mut c_void,
+        );
+
+        pub fn emscripten_unwind_to_js_event_loop() -> !;
+    }
+}
+
+#[cfg(target_os = "emscripten")]
+fn main() {
+    use std::mem::MaybeUninit;
+
+    let _ = if cfg!(debug_assertions) {
+        simple_logger::init_with_level(log::Level::Trace)
+    } else {
+        simple_logger::init_with_level(log::Level::Info)
+    };
+
+    // Statically allocate all the state because we actually return from main
+    // then the rest of the program runs via animation callbacks.
+    static mut SDL_CONTEXT: MaybeUninit<sdl2::Sdl> = MaybeUninit::uninit();
+    static mut EVENT_PUMP: MaybeUninit<sdl2::EventPump> = MaybeUninit::uninit();
+
+    unsafe {
+        SDL_CONTEXT = MaybeUninit::new(sdl2::init().unwrap());
+        EVENT_PUMP = MaybeUninit::new((&*SDL_CONTEXT.as_ptr()).event_pump().unwrap());
+    }
+
+    let window: &'static mut Window = unsafe {
+        // Limit the scope of this value because VIDEO holds a mutable ref to it
+        // and any other refs would be UB.
+        static mut WINDOW: MaybeUninit<Window> = MaybeUninit::uninit();
+
+        let video_subsystem = (&*SDL_CONTEXT.as_ptr()).video().unwrap();
+        WINDOW = MaybeUninit::new(Window::create(video_subsystem));
+        &mut *WINDOW.as_mut_ptr()
+    };
+    static mut VIDEO: MaybeUninit<Video<'static>> = MaybeUninit::uninit();
+    unsafe {
+        VIDEO = MaybeUninit::new(Video::setup(window));
+    }
+
+    static mut EMULATOR: MaybeUninit<Emulator> = MaybeUninit::uninit();
+    static mut CPU: MaybeUninit<Z80> = MaybeUninit::uninit();
+    let (emulator, cpu) = unsafe {
+        EMULATOR = MaybeUninit::new(Emulator::new());
+        CPU = MaybeUninit::new(Z80::new());
+        (&mut *EMULATOR.as_mut_ptr(), &mut *CPU.as_mut_ptr())
+    };
+
+    if let Some(path) = std::env::args().skip(1).next() {
+        load_program(emulator, cpu, &path);
+    }
+
+    extern "C" fn wrap_iterate(millis: f64, _: *mut emscripten::c_void) -> emscripten::EM_BOOL {
+        // Get the time of the last frame and store the current time, computing
+        // the duration of the last frame.
+        static mut LAST_FRAME: Option<f64> = None;
+        let last_frame = unsafe { &mut LAST_FRAME };
+        let frame_time = match std::mem::replace(last_frame, Some(millis)) {
+            Some(prev_millis) => Duration::from_secs_f64((millis - prev_millis) / 1000.0),
+            None => {
+                // If no data yet, store and wait one more frame.
+                return 1;
+            }
+        };
+
+        unsafe {
+            let emulator = &mut *EMULATOR.as_mut_ptr();
+            iterate_main(frame_time, &mut *VIDEO.as_mut_ptr(),
+                         &mut *EVENT_PUMP.as_mut_ptr(),
+                         &mut *emulator, &mut *CPU.as_mut_ptr());
+            if emulator.is_running() {
+                1
+            } else {
+                0
+            }
+        }
+    }
+
+    unsafe {
+        emscripten::emscripten_request_animation_frame_loop(
+            wrap_iterate,
+            std::ptr::null_mut()
+        );
+        // Yield back to the browser. We need to avoid exiting because libstd
+        // will otherwise do cleanup of resources we still need.
+        emscripten::emscripten_unwind_to_js_event_loop();
     }
 }
 
