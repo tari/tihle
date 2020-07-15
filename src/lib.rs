@@ -283,6 +283,11 @@ impl Emulator {
         self.mem.write_u16(tios::progPtr, tios::symTable);
         self.mem.write_u16(tios::pTemp, tios::symTable);
 
+        // The unused hardware stack area is zeroed
+        for addr in tios::symTable + 1..regs.sp {
+            self.mem[addr] = 0;
+        }
+
         // Cursor and pen are at top left
         for &byte in &[tios::curRow, tios::curCol, tios::penRow, tios::penCol] {
             self.mem[byte] = 0;
