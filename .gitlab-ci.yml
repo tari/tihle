@@ -61,7 +61,7 @@ package:emscripten:
     - make -C programs
     - python3 /emsdk/upstream/emscripten/tools/file_packager.py programs.data --js-output=programs.js --preload programs/phoenix.8xp
     - mkdir release
-    - cp tihle.html release
+    - cp dist/emscripten-shell.html release/index.html
     - cp programs.{js,data} release
     - cp target/wasm32-unknown-emscripten/release/tihle.{js,wasm} release
   artifacts:
