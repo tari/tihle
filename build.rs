@@ -11,9 +11,9 @@ fn main() {
         );
     }
 
-    rerun_if_changed("third_party/redcode/");
+    rerun_if_changed("src/z80/redcode/");
     cc::Build::new()
-        .file("third_party/redcode/Z80.c")
+        .file("src/z80/redcode/Z80.c")
         .define("CPU_Z80_STATIC", None)
         .define("CPU_Z80_USE_LOCAL_HEADER", None)
         .define("CPU_Z80_DEPENDENCIES_H", Some("\"z80bits.h\""))
