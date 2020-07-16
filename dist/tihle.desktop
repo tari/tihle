@@ -4,3 +4,4 @@ Type=Application
 Name=tihle
 GenericName=TI calculator emulator
 Exec=tihle %f
+Icon=tihle
