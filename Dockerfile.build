@@ -1,6 +1,6 @@
 FROM emscripten/emsdk AS bin-packages
 RUN apt-get -qqy update && apt-get -qqy install --no-install-recommends \
-        libgmp10 openssl mingw-w64 libsdl2-dev && \
+        libgmp10 openssl mingw-w64 libsdl2-dev file && \
     rm -rf /var/lib/apt/lists/*
 
 
@@ -22,4 +22,7 @@ ENV RUSTUP_HOME=/usr/local/rustup \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path && \
     ln -s -t /usr/local/bin /usr/local/cargo/bin/* && \
     rustup target add wasm32-unknown-emscripten i686-pc-windows-gnu
+RUN curl -L https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
+         -o /usr/local/bin/linuxdeploy && \
+    chmod +x /usr/local/bin/linuxdeploy
 COPY --from=build-spasm /usr/bin/spasm /usr/bin
