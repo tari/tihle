@@ -58,7 +58,8 @@ package:emscripten:
   needs: ["build:emscripten"]
   script:
     - make -C programs
-    - /emsdk/upstream/emscripten/tools/file_packager.py programs.data --js-output=programs.js \
+    - python3 /emsdk/upstream/emscripten/tools/file_packager.py \
+          programs.data --js-output=programs.js \
           programs/phoenix.8xp
     - mkdir release
     - cp tihle.html release
