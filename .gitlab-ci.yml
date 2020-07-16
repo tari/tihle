@@ -69,6 +69,17 @@ package:emscripten:
       - release/
 
 
+pages:
+  stage: deploy
+  needs: ["package:emscripten"]
+  only: [master]
+  script:
+    - mv release public
+  artifacts:
+    paths:
+      - public/
+
+
 build:linux:
   stage: build
   needs: []
