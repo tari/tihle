@@ -60,7 +60,7 @@ package:emscripten:
     - make -C programs
     - python3 /emsdk/upstream/emscripten/tools/file_packager.py \
           programs.data --js-output=programs.js \
-          programs/phoenix.8xp
+          --preload programs/phoenix.8xp
     - mkdir release
     - cp tihle.html release
     - cp programs.{js,data} release
