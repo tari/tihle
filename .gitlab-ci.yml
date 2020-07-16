@@ -57,10 +57,11 @@ package:emscripten:
   stage: deploy
   needs: ["build:emscripten"]
   script:
-    - mkdir release
-    - cp tihle.html release
+    - make -C programs
     - /emsdk/upstream/emscripten/tools/file_packager.py programs.data --js-output=programs.js \
           programs/phoenix.8xp
+    - mkdir release
+    - cp tihle.html release
     - cp programs.{js,data} release
     - cp target/i686-pc-windows-gnu/release/tihle.{js,wasm} release
   artifacts:
