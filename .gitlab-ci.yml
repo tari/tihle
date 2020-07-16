@@ -1,5 +1,11 @@
 image: tari/tihle-build:latest
 
+stages:
+  - build
+  - test
+  - package
+  - deploy
+
 
 .cargo:
   variables:
@@ -55,7 +61,7 @@ build:emscripten:
 
 
 package:emscripten:
-  stage: deploy
+  stage: package
   needs: ["build:emscripten"]
   script:
     - make -C programs
@@ -94,7 +100,7 @@ build:linux:
 
 
 package:linux:
-  stage: deploy
+  stage: package
   needs: ["build:linux"]
   script:
     - ./dist/build-appimage.sh
