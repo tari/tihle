@@ -1,15 +1,16 @@
 image: tari/tihle-build:latest
 
-variables:
-  CARGO_HOME: $CI_PROJECT_DIR/.cargo_home
 
-cache:
-  key: cargo
-  paths:
-  - .cargo_home/bin
-  - .cargo_home/registry/index
-  - .cargo_home/registry/cache
-  - .cargo_home/git/db
+.cargo:
+  variables:
+    CARGO_HOME: $CI_PROJECT_DIR/.cargo_home
+  cache:
+    paths:
+    - .cargo_home/bin
+    - .cargo_home/registry/index
+    - .cargo_home/registry/cache
+    - .cargo_home/git/db
+    - target/
 
 
 test:
@@ -22,6 +23,9 @@ test:
 build:windows:
   stage: build
   needs: []
+  extends: .cargo
+  cache:
+    key: windows-release
   variables:
     # Cross-compiling for mingw and exception handling is rather fraught:
     # https://github.com/rust-lang/rust/issues/32859
@@ -39,6 +43,9 @@ build:windows:
 build:emscripten:
   stage: build
   needs: []
+  extends: .cargo
+  cache:
+    key: emscripten-release
   script:
     - cargo build --bins --release --locked --target=wasm32-unknown-emscripten
   artifacts:
@@ -64,6 +71,9 @@ package:emscripten:
 build:linux:
   stage: build
   needs: []
+  extends: .cargo
+  cache:
+    key: linux-release
   script:
     - cargo build --bins --release --locked --target=x86_64-unknown-linux-gnu --features=sdl2/static-link,sdl2/bundled
   artifacts:
