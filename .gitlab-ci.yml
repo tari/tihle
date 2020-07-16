@@ -33,7 +33,7 @@ build:windows:
     - cargo build --bins --release --locked --target=i686-pc-windows-gnu --features=sdl2/static-link,sdl2/bundled
   artifacts:
     paths:
-    - target/i686-pc-windows-gnux/release/
+    - target/i686-pc-windows-gnu/release/
 
 
 build:emscripten:
