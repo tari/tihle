@@ -1,0 +1,13 @@
+icon ICON "tihle.ico"
+1 VERSIONINFO
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "080904E4"
+    BEGIN
+      VALUE "CompanyName", "Peter Marheine"
+      VALUE "ProductName", "tihle"
+      VALUE "FileDescription", "High-level emulator for TI calculators"
+    END
+  END
+END
