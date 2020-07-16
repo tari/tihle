@@ -63,7 +63,7 @@ package:emscripten:
     - mkdir release
     - cp tihle.html release
     - cp programs.{js,data} release
-    - cp target/i686-pc-windows-gnu/release/tihle.{js,wasm} release
+    - cp target/wasm32-unknown-emscripten/release/tihle.{js,wasm} release
   artifacts:
     paths:
       - release/
