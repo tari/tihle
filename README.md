@@ -1,3 +1,5 @@
+<img src="dist/tihle.svg" width=320>
+
 tihle (pronounced like "tile") is a freely usable emulator of the TI-83 Plus
 graphing calculator, and maybe other calculators in the future.
 
