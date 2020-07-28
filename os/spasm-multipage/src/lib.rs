@@ -241,9 +241,6 @@ fn build<P: AsRef<Path>>(
 
     // Copy the listing file too
     {
-        let mut s = String::new();
-        std::io::stdin().read_line(&mut s).unwrap();
-
         let mut src = output_filename.clone();
         src.set_extension("lst");
         let mut dst = target.to_owned();
@@ -291,4 +288,14 @@ fn build<P: AsRef<Path>>(
     debug!("Exports: {:?}", export_values);
 
     export_values
+}
+
+pub fn autobuild<P: AsRef<Path>>(files: &[P], include_dirs: &[P]) {
+    let parsed_files = files.iter().map(|path| {
+        let f = std::fs::File::open(path).expect("Unable to open source file for parsing");
+        let info = FileInfo::parse(BufReader::new(f));
+        (path.as_ref().to_owned(), info)
+    }).collect::<Vec<_>>();
+    let graph = analyze(&parsed_files);
+    build_all(&graph, &include_dirs);
 }

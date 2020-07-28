@@ -34,8 +34,11 @@ env_logger = { version = "0.7.1", default-features = false, features = ["termcol
 simple_logger = { version = "1.6", default-features = false, features = ["chrono"] }
 
 [build-dependencies]
-cc = "1.0"
+cc = "1"
 walkdir = "2"
+
+[build-dependencies.spasm-multipage]
+path = "os/spasm-multipage"
 
 [dev-dependencies]
 quickcheck = { version = "0.9.1", default-features = false, features = ["use_logging"] }

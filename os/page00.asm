@@ -1,3 +1,5 @@
+; MULTIPAGE:PAGE:00
+
 .nolist
 #include "tihle-os.inc"
 #include "ti83plus.inc"

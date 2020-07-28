@@ -1,19 +1,21 @@
+; MULTIPAGE:PAGE:1B
+
 #include "ti83plus.inc"
 #define VECTOR(ADDR, PAGE, TARGET) .seek ADDR - $4000 \ .db PAGE \ .dw TARGET
 
-VECTOR(_cpHLDE, 1, $4000)
-VECTOR(_PutMap, 1, $4003)
-VECTOR(_PutC, 1, $4006)
-VECTOR(_DispHL, 1, $4009)
-VECTOR(_PutS, 1, $400c)
-VECTOR(_ClrLCDFull, 1, $400f)
-VECTOR(_HomeUp, 1, $4012)
-VECTOR(_VPutMap, 1, $4015)
-VECTOR(_VPutS, 1, $4018)
-VECTOR(_GrBufCpu, 1, $401b)
-VECTOR(_MemSet, 1, $401e)
-VECTOR(_GetCSC, 1, $4021)
-VECTOR(_DivHLBy10, 1, $4024)
+VECTOR(_cpHLDE, cpHLDE_PAGE, cpHLDE)            ; MULTIPAGE:IMPORT:cpHLDE
+VECTOR(_PutMap, PutMap_PAGE, PutMap)            ; MULTIPAGE:IMPORT:PutMap
+VECTOR(_PutC, PutC_PAGE, PutC)                  ; MULTIPAGE:IMPORT:PutC
+VECTOR(_DispHL, DispHL_PAGE, DispHL)            ; MULTIPAGE:IMPORT:DispHL
+VECTOR(_PutS, PutS_PAGE, PutS)                  ; MULTIPAGE:IMPORT:PutS
+VECTOR(_ClrLCDFull, ClrLCDFull_PAGE, ClrLCDFull); MULTIPAGE:IMPORT:ClrLCDFull
+VECTOR(_HomeUp, HomeUp_PAGE, HomeUp)            ; MULTIPAGE:IMPORT:HomeUp
+VECTOR(_VPutMap, VPutMap_PAGE, VPutMap)         ; MULTIPAGE:IMPORT:VPutMap
+VECTOR(_VPutS, VPutS_PAGE, VPutS)               ; MULTIPAGE:IMPORT:VPutS
+VECTOR(_GrBufCpy, GrBufCpy_PAGE, GrBufCpy)      ; MULTIPAGE:IMPORT:GrBufCpy
+VECTOR(_MemSet, MemSet_PAGE, MemSet)            ; MULTIPAGE:IMPORT:MemSet
+VECTOR(_GetCSC, GetCSC_PAGE, GetCSC)            ; MULTIPAGE:IMPORT:GetCSC
+VECTOR(_DivHLBy10, DivHLBy10_PAGE, DivHLBy10)   ; MULTIPAGE:IMPORT:DivHLBy10
 
 ; Ensure vector table isn't truncated
 .seek $4000

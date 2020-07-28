@@ -1,14 +1,14 @@
 fn main() {
-    rerun_if_changed("os/");
-    if let Err(e) = std::process::Command::new("make")
-        .arg("-C")
-        .arg("os")
-        .status()
-    {
-        println!(
-            "cargo:warning=Failed to run make to build OS; compilation may fail: {}",
-            e
-        );
+    let os_sources = [
+        "os/page00.asm",
+        "os/page01.asm",
+        "os/page1b.asm",
+    ];
+    // TODO this should probably emit binaries to the cargo build dir
+    spasm_multipage::autobuild(&os_sources, &["os/", "programs/include/"]);
+    rerun_if_changed("os/tihle-os.inc");
+    for src in &os_sources {
+        rerun_if_changed(src);
     }
 
     rerun_if_changed("src/z80/redcode/");
