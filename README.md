@@ -6,7 +6,9 @@ graphing calculator, and maybe other calculators in the future.
 ![A screencapture of tihle running Phoenix](dist/demo.gif)
 
 **[Try the in-browser demo](https://taricorp.gitlab.io/tihle/)** to see what it
-can do, [read more about why it exists](https://www.taricorp.net/2020/introducing-tihle/),
+can do, [download a release](https://gitlab.com/taricorp/tihle/-/releases)
+to get a copy to run on your computer,
+[read more about why it exists](https://www.taricorp.net/2020/introducing-tihle/),
 or continue on in this document to learn how to use or modify it.
 
 ## Usage
