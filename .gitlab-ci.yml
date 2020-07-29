@@ -41,7 +41,7 @@ build:windows:
     # Link in resources so we have a nice icon
     - i686-w64-mingw32-windres dist/icon.rc icon.res.o
     # Ask sdl2 to statically link against an SDL library it provides for us
-    - cargo build --bins --release --locked --target=i686-pc-windows-gnu --features=sdl2/static-link,sdl2/bundled
+    - cargo build --bins --release --locked --target=i686-pc-windows-gnu --features=git-build-info,sdl2/static-link,sdl2/bundled
   artifacts:
     paths:
     - target/i686-pc-windows-gnu/release/
@@ -54,7 +54,7 @@ build:emscripten:
   cache:
     key: emscripten-release
   script:
-    - cargo build --bins --release --locked --target=wasm32-unknown-emscripten
+    - cargo build --bins --release --locked --target=wasm32-unknown-emscripten --features=git-build-info
   artifacts:
     paths:
       - target/wasm32-unknown-emscripten/release/
@@ -93,7 +93,7 @@ build:linux:
   cache:
     key: linux-release
   script:
-    - cargo build --bins --release --locked --target=x86_64-unknown-linux-gnu --features=sdl2/static-link,sdl2/bundled
+    - cargo build --bins --release --locked --target=x86_64-unknown-linux-gnu --features=git-build-info,sdl2/static-link,sdl2/bundled
   artifacts:
     paths:
       - target/x86_64-unknown-linux-gnu/release/
