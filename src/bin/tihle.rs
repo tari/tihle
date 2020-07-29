@@ -135,11 +135,41 @@ impl<'a> Video<'a> {
     }
 }
 
+pub mod built_info {
+    include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}
+
+fn output_build_info() {
+    eprintln!(
+        "tihle version {} for {}, compiled {}",
+        built_info::PKG_VERSION,
+        built_info::TARGET,
+        built_info::BUILT_TIME_UTC
+    );
+    if built_info::DEBUG {
+        eprintln!("This is a DEBUG build, from {}", built_info::RUSTC_VERSION);
+    }
+
+    #[cfg(feature = "git-build-info")]
+    {
+        eprintln!(
+            "Compiled from git revision {} (tree {})",
+            built_info::GIT_VERSION.unwrap_or("<unknown>"),
+            match built_info::GIT_DIRTY {
+                None => "unknown",
+                Some(true) => "dirty",
+                Some(false) => "clean",
+            }
+        );
+    }
+}
+
 #[cfg(not(target_os = "emscripten"))]
 fn main() {
     use std::time::Instant;
 
     env_logger::init();
+    output_build_info();
 
     let sdl_context = sdl2::init().unwrap();
 
@@ -265,9 +295,13 @@ fn main() {
 
         unsafe {
             let emulator = &mut *EMULATOR.as_mut_ptr();
-            iterate_main(frame_time, &mut *VIDEO.as_mut_ptr(),
-                         &mut *EVENT_PUMP.as_mut_ptr(),
-                         &mut *emulator, &mut *CPU.as_mut_ptr());
+            iterate_main(
+                frame_time,
+                &mut *VIDEO.as_mut_ptr(),
+                &mut *EVENT_PUMP.as_mut_ptr(),
+                &mut *emulator,
+                &mut *CPU.as_mut_ptr(),
+            );
             if emulator.is_running() {
                 1
             } else {
@@ -277,10 +311,7 @@ fn main() {
     }
 
     unsafe {
-        emscripten::emscripten_request_animation_frame_loop(
-            wrap_iterate,
-            std::ptr::null_mut()
-        );
+        emscripten::emscripten_request_animation_frame_loop(wrap_iterate, std::ptr::null_mut());
         // Yield back to the browser. We need to avoid exiting because libstd
         // will otherwise do cleanup of resources we still need.
         emscripten::emscripten_unwind_to_js_event_loop();

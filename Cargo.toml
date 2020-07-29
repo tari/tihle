@@ -19,6 +19,8 @@ lto = true
 # log/release_max_level_info (or similar) can also be turned on to remove
 # debug logs from the binary completely.
 
+git-build-info = [ "built/git2" ]
+
 [dependencies]
 arr_macro = "0.1.3"
 bitflags = "1.0"
@@ -36,6 +38,10 @@ simple_logger = { version = "1.6", default-features = false, features = ["chrono
 [build-dependencies]
 cc = "1"
 walkdir = "2"
+
+[build-dependencies.built]
+version = "0.4"
+features = [ "chrono" ]
 
 [build-dependencies.spasm-multipage]
 path = "os/spasm-multipage"

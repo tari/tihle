@@ -1,9 +1,7 @@
 fn main() {
-    let os_sources = [
-        "os/page00.asm",
-        "os/page01.asm",
-        "os/page1b.asm",
-    ];
+    built::write_built_file().expect("Failed to collect build information");
+
+    let os_sources = ["os/page00.asm", "os/page01.asm", "os/page1b.asm"];
     // TODO this should probably emit binaries to the cargo build dir
     spasm_multipage::autobuild(&os_sources, &["os/", "programs/include/"]);
     rerun_if_changed("os/tihle-os.inc");
