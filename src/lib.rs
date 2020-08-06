@@ -18,6 +18,9 @@
 //! emulator in response to the trap.
 
 #[macro_use]
+extern crate arr_macro;
+
+#[macro_use]
 extern crate log;
 
 #[macro_use]
@@ -33,47 +36,9 @@ use num_traits::FromPrimitive;
 use std::cell::Cell;
 use std::time::Duration;
 
-/*
-
-Obviously required traps:
- * 0028: bcall entry point
- * 0038: IM 1 vector
-
-Likely required traps:
- * The other documented rst vectors
-   * 08 => OP1ToOP2
-   * 10 => FindSym
-   * 18 => PushRealO1
-   * 20 => Mov9ToOP1
-   * 30 => FPAdd
- * LCD_BUSY_QUICK (0x000B; 47 cycles)
- * Ion vectors
- * MOS vectors
-
-Major bcalls:
- * PutS and friends (honor flags too)
- * ChkFindSym
-
-Ports that we probably need good fidelity for:
- * Keypad ports
- * LCD ports
-
-Used by phoenix:
- * _Disphl
- * _VPutMap
- * _ClrLCDFull
- * idetect
- * _divhlby10
- * _VPutS
- * _GetCSC
- * flags + 13 (appFlags)
- * LCD ports
- * Mirage setupint
-
-*/
-
 mod bcalls;
 mod checksum;
+pub mod debug;
 pub mod display;
 mod interrupt;
 pub mod keyboard;
@@ -93,6 +58,10 @@ pub use interrupt::InterruptController;
 pub use memory::Memory;
 pub use z80::{Flags, Z80};
 
+pub mod built_info {
+    include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}
+
 pub struct Emulator {
     clock_rate: u32,
     pub mem: Memory,
@@ -101,9 +70,20 @@ pub struct Emulator {
     pub keyboard: keyboard::Keyboard,
     /// If true, emulation has terminated.
     terminate: Cell<bool>,
+    #[cfg(feature = "remote-debug")]
+    pub debug: debug::RemoteDebugger,
+    #[cfg(not(feature = "remote-debug"))]
+    debug: debug::DummyDebugger,
+
+    #[cfg(test)]
+    pub debug_commands_executed: usize,
 }
 
-static FLASH_IMAGE: &[(u8, &[u8])] = &[
+pub struct Builder {
+    flash_pages: [Vec<u8>; 0x20],
+}
+
+static DEFFAULT_FLASH_IMAGE: &[(u8, &[u8])] = &[
     (0, include_bytes!("../os/page00.bin")),
     (1, include_bytes!("../os/page01.bin")),
     (0x1B, include_bytes!("../os/page1b.bin")),
@@ -119,24 +99,56 @@ enum MemoryAccessKind {
     Data,
 }
 
+impl std::default::Default for Builder {
+    fn default() -> Self {
+        let mut flash_pages = arr![vec![]; 0x20];
+        for (page, data) in DEFFAULT_FLASH_IMAGE {
+            flash_pages[*page as usize].extend(data.iter());
+        }
+
+        Builder { flash_pages }
+    }
+}
+
+impl Builder {
+    pub fn build(self) -> Emulator {
+        Emulator {
+            clock_rate: 6_000_000,
+            mem: Memory::new((0u8..).zip(self.flash_pages.iter())),
+            interrupt_controller: InterruptController::new(),
+            display: Display::new(),
+            keyboard: keyboard::Keyboard::new(),
+            terminate: Cell::new(true),
+            debug: Default::default(),
+
+            /// For tests, report the number of debug commands that have been executed.
+            ///
+            /// This allows tests to wait until their commands have been processed, since
+            /// the time it takes to handle them may vary due to thread scheduling.
+            #[cfg(test)]
+            debug_commands_executed: 0,
+        }
+    }
+}
+
 impl Emulator {
     /// Construct a new emulator.
     ///
     /// Initially the CPU is terminated; call [load_program] to start the
     /// CPU so calls to [run] will run the CPU.
     pub fn new() -> Self {
-        Emulator {
-            clock_rate: 6_000_000,
-            mem: Memory::new(FLASH_IMAGE),
-            interrupt_controller: InterruptController::new(),
-            display: Display::new(),
-            keyboard: keyboard::Keyboard::new(),
-            terminate: Cell::new(true),
-        }
+        Self::builder().build()
+    }
+
+    pub fn builder() -> Builder {
+        Default::default()
     }
 
     pub fn reset(&mut self) {
-        *self = Self::new();
+        self.interrupt_controller = InterruptController::new();
+        self.display = Display::new();
+        self.keyboard = keyboard::Keyboard::new();
+        self.terminate = Cell::new(true);
     }
 
     pub fn is_running(&self) -> bool {
@@ -156,11 +168,18 @@ impl Emulator {
     }
 
     /// Run the emulator for up to `max_step`, returning the amount of time
-    /// the emulated CPU ran for.
-    pub fn run(&mut self, cpu: &mut Z80, max_step: Duration) -> Duration {
+    /// the emulated CPU ran for or None if the CPU is not running.
+    pub fn run(&mut self, cpu: &mut Z80, max_step: Duration) -> Option<Duration> {
+        // Always process debugger actions.
+        let _actions = self.debug.run();
+        #[cfg(test)]
+        {
+            self.debug_commands_executed += _actions;
+        }
+
         if !self.is_running() {
             debug!("CPU terminated, doing nothing");
-            return Duration::from_secs(0);
+            return None;
         }
 
         let (irq_pending, until_next_interrupt) = self.interrupt_controller.poll();
@@ -194,7 +213,7 @@ impl Emulator {
         };
 
         self.interrupt_controller.advance(duration_run);
-        duration_run
+        Some(duration_run)
     }
 
     /// Load an 8xp-format program from the given reader.

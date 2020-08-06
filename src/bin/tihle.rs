@@ -136,11 +136,9 @@ impl<'a> Video<'a> {
     }
 }
 
-pub mod built_info {
-    include!(concat!(env!("OUT_DIR"), "/built.rs"));
-}
-
 fn output_build_info() {
+    use tihle::built_info;
+
     eprintln!(
         "tihle version {} for {}, compiled {}",
         built_info::PKG_VERSION,
@@ -442,12 +440,16 @@ fn iterate_main(
         }
     }
 
-    // Loop running the CPU to reach the target emulated time as long
-    // as we've haven't terminated.
+    // Loop running the CPU to reach the target emulated time.
     const ZERO_TIME: Duration = Duration::from_nanos(0);
-    while emu.is_running() && frame_time != ZERO_TIME {
+    while frame_time != ZERO_TIME {
         debug!("Run CPU for up to {:?} to reach frame time", frame_time);
-        let emulated_duration = emu.run(cpu, frame_time);
+        // If the CPU isn't running we won't make progress, so stop.
+        let emulated_duration = match emu.run(cpu, frame_time) {
+            None => break,
+            Some(d) => d,
+        };
+
         debug!("CPU ran for {:?}", emulated_duration);
         frame_time = frame_time
             .checked_sub(emulated_duration)

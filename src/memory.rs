@@ -20,10 +20,11 @@ const BANKA_ADDRS: std::ops::Range<u16> = 0x4000..0x8000;
 const RAM_ADDRS: std::ops::RangeInclusive<u16> = 0x8000..=0xFFFF;
 
 impl Memory {
-    pub fn new<'i, I: 'i + IntoIterator<Item = &'i (u8, &'i [u8])>>(flash_pages: I) -> Self {
+    pub fn new<P: AsRef<[u8]>, I: IntoIterator<Item = (u8, P)>>(flash_pages: I) -> Self {
         let mut flash: Box<_> = vec![[0u8; 0x4000]; FLASH_PAGES as usize].into_boxed_slice();
         for (page, contents) in flash_pages {
-            flash[*page as usize][..contents.len()].copy_from_slice(contents);
+            let contents = contents.as_ref();
+            flash[page as usize][..contents.len()].copy_from_slice(contents);
         }
 
         // Fill RAM with pseudo-random values
