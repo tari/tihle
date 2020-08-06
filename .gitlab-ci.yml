@@ -24,7 +24,7 @@ test:
   stage: test
   needs: []
   script:
-  - cargo test --locked
+  - cargo test --locked --all-features
 
 
 build:windows:
