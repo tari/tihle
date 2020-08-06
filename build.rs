@@ -3,7 +3,12 @@ fn main() {
 
     let os_sources = ["os/page00.asm", "os/page01.asm", "os/page1b.asm"];
     // TODO this should probably emit binaries to the cargo build dir
-    spasm_multipage::autobuild(&os_sources, &["os/", "programs/include/"]);
+    if let Err(e) = spasm_multipage::autobuild(&os_sources, &["os/", "programs/include/"]) {
+        println!(
+            "cargo:warning=Failed to invoke spasm to build OS image; build may fail: {:?}",
+            e
+        );
+    }
     rerun_if_changed("os/tihle-os.inc");
     for src in &os_sources {
         rerun_if_changed(src);

@@ -9,6 +9,13 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+#[derive(Debug)]
+pub enum Error {
+    CircularImports,
+    AssemblerNotRun(std::io::Error),
+    AssemblerError(std::process::ExitStatus),
+}
+
 #[derive(Debug, Clone)]
 pub struct FileInfo {
     /// The page this file is declared as.
@@ -124,27 +131,27 @@ pub fn analyze(sources: &[(PathBuf, FileInfo)]) -> DependencyGraph {
 /// exports a symbol to all that import it.
 pub type DependencyGraph = Graph<(PathBuf, FileInfo), String>;
 
-pub fn build_all<P: AsRef<Path>>(depgraph: &DependencyGraph, include_paths: &[P]) {
+pub fn build_all<P: AsRef<Path>>(depgraph: &DependencyGraph, include_paths: &[P]) -> Result<(), Error> {
     assert!(depgraph.is_directed());
     let mut global_symbols: HashMap<String, (u8, u16)> = HashMap::new();
 
     let nodes = match petgraph::algo::toposort(&depgraph, None) {
         Ok(f) => f,
         Err(_) => {
-            panic!("Found circular imports; cannot generate build order");
+            return Err(Error::CircularImports);
         }
     };
 
     // Canonicalize include paths as required for build() because it changes the
     // working directory for spasm.
-    let include_paths = include_paths
+    let include_paths: Vec<PathBuf> = include_paths
         .iter()
         .map(|p| {
             p.as_ref()
                 .canonicalize()
-                .expect("Unable to canonicalize include path")
+                .expect("Failed to canonicalize include path")
         })
-        .collect::<Vec<_>>();
+        .collect();
 
     for node in nodes {
         let &(ref path, ref info) = &depgraph[node];
@@ -158,12 +165,14 @@ pub fn build_all<P: AsRef<Path>>(depgraph: &DependencyGraph, include_paths: &[P]
             &include_paths,
             &info.exports,
             &global_symbols,
-        );
+        )?;
         let with_pages = exported_values
             .drain()
             .map(|(symbol, addr)| (symbol, (info.page, addr)));
         global_symbols.extend(with_pages);
     }
+
+    Ok(())
 }
 
 /// Assemble a single source file
@@ -188,7 +197,7 @@ fn build<P: AsRef<Path>>(
     include_dirs: &[P],
     exports: &HashSet<String>,
     imports: &HashMap<String, (u8, u16)>,
-) -> HashMap<String, u16> {
+) -> Result<HashMap<String, u16>, Error> {
     eprintln!("Building {:?}", file);
     let build_dir = tempdir::TempDir::new("spasm-multipage-build").unwrap();
     // Copy source file to temporary directory because the label file always get written next to it
@@ -232,8 +241,14 @@ fn build<P: AsRef<Path>>(
     };
     spasm.arg(&output_filename);
 
-    if !spasm.status().expect("Unable to invoke spasm").success() {
-        panic!("Spasm returned error status");
+    match spasm.status() {
+        Ok(s) if s.success() => {},
+        Ok(s) => {
+            return Err(Error::AssemblerError(s));
+        },
+        Err(e) => {
+            return Err(Error::AssemblerNotRun(e));
+        }
     }
 
     // Copy output to the provided output path
@@ -287,15 +302,16 @@ fn build<P: AsRef<Path>>(
     }
     debug!("Exports: {:?}", export_values);
 
-    export_values
+    Ok(export_values)
 }
 
-pub fn autobuild<P: AsRef<Path>>(files: &[P], include_dirs: &[P]) {
+pub fn autobuild<P: AsRef<Path>>(files: &[P], include_dirs: &[P]) -> Result<(), Error> {
     let parsed_files = files.iter().map(|path| {
         let f = std::fs::File::open(path).expect("Unable to open source file for parsing");
         let info = FileInfo::parse(BufReader::new(f));
         (path.as_ref().to_owned(), info)
     }).collect::<Vec<_>>();
     let graph = analyze(&parsed_files);
-    build_all(&graph, &include_dirs);
+
+    build_all(&graph, &include_dirs)
 }
