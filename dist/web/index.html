@@ -3,7 +3,9 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Emscripten-Generated Code</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>tihle in your browser</title>
+    <link rel="manifest" href="tihle.webmanifest">
     <style>
       body {
         font-family: arial;
@@ -17,23 +19,9 @@
       /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
       canvas.emscripten { border: 0px none; }
 
-      #emscripten_logo {
-        display: inline-block;
-        margin: 0;
-      }
-
       .spinner {
         height: 30px;
         width: 30px;
-        margin: 0;
-        margin-top: 20px;
-        margin-left: 20px;
-        display: inline-block;
-        vertical-align: top;
-
-        -webkit-animation: rotation .8s linear infinite;
-        -moz-animation: rotation .8s linear infinite;
-        -o-animation: rotation .8s linear infinite;
         animation: rotation 0.8s linear infinite;
 
         border-left: 5px solid rgb(235, 235, 235);
@@ -45,35 +33,24 @@
         background-color: rgb(189, 215, 46);
       }
 
-      @-webkit-keyframes rotation {
-        from {-webkit-transform: rotate(0deg);}
-        to {-webkit-transform: rotate(360deg);}
-      }
-      @-moz-keyframes rotation {
-        from {-moz-transform: rotate(0deg);}
-        to {-moz-transform: rotate(360deg);}
-      }
-      @-o-keyframes rotation {
-        from {-o-transform: rotate(0deg);}
-        to {-o-transform: rotate(360deg);}
-      }
       @keyframes rotation {
         from {transform: rotate(0deg);}
         to {transform: rotate(360deg);}
       }
 
-      #status {
-        display: inline-block;
-        vertical-align: top;
-        margin-top: 30px;
-        margin-left: 20px;
+      #info-overlay {
+        position: absolute;
+        display: flex;
+        flex-flow: column;
+        align-items: center;
+        width: 100%;
         font-weight: bold;
         color: rgb(120, 120, 120);
       }
 
       #progress {
         height: 20px;
-        width: 30px;
+        width: 240px;
       }
 
       #controls {
@@ -98,23 +75,12 @@
     </style>
   </head>
   <body>
-    <div class="spinner" id='spinner'></div>
-    <div class="emscripten" id="status">Downloading...</div>
-
-<span id='controls'>
-  <span><input type="checkbox" id="resize">Resize canvas</span>
-  <span><input type="checkbox" id="pointerLock" checked>Lock/hide mouse pointer &nbsp;&nbsp;&nbsp;</span>
-  <span><input type="button" value="Fullscreen" onclick="Module.requestFullScreen(document.getElementById('pointerLock').checked, 
-                                                                            document.getElementById('resize').checked)">
-  </span>
-</span>
-
-    <div class="emscripten">
-      <progress value="0" max="100" id="progress" hidden=1></progress>
-    </div>
-
-    
     <div class="emscripten_border">
+      <div id="info-overlay">
+        <progress value="0" max="100" id="progress" hidden=1></progress>
+        <div class="spinner" id='spinner'></div>
+        <div class="emscripten" id="status">Downloading...</div>
+      </div>
       <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
     </div>
     <textarea id="output" rows="8"></textarea>
@@ -125,6 +91,7 @@
       var spinnerElement = document.getElementById('spinner');
 
       var Module = {
+        arguments: ['/programs/phoenix.8xp'],
         preRun: [],
         postRun: [],
         print: (function() {
@@ -141,11 +108,7 @@
         })(),
         printErr: function(text) {
           if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
-          if (0) { // XXX disabled for safety typeof dump == 'function') {
-            dump(text + '\n'); // fast, straight to the real console
-          } else {
-            console.error(text);
-          }
+          console.error(text);
         },
         canvas: (function() {
           var canvas = document.getElementById('canvas');
@@ -192,10 +155,10 @@
           if (text) Module.printErr('[post-exception status] ' + text);
         };
       };
-    </script>
-    <script src="programs.js"></script>
-    <script>
-        Module['arguments'] = ['/programs/phoenix.8xp'];
+
+      if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('./sw.js');
+      }
     </script>
     <script src="tihle.js"></script>
   </body>

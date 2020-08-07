@@ -3,5 +3,6 @@ rustflags = [
     """-Clink-args=-s USE_SDL=2 \
                    -s FORCE_FILESYSTEM=1 \
                    -s STACK_OVERFLOW_CHECK=1 \
-                   -s MALLOC=emmalloc"""
+                   -s MALLOC=emmalloc \
+                   --preload-file out/programs/@/programs/"""
 ]
