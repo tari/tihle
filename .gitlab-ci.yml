@@ -54,9 +54,6 @@ build:emscripten:
   cache:
     key: emscripten-release
   script:
-    - make -C programs
-    - mkdir -p out/programs
-    - cp programs/*.8xp out/programs/
     - cargo build --bins --release --locked --target=wasm32-unknown-emscripten
   artifacts:
     paths:
@@ -67,6 +64,8 @@ build:emscripten:
 package:emscripten:
   stage: package
   needs: ["build:emscripten"]
+  cache:
+    key: emscripten-release
   script:
     - ./dist/build-web.sh
   artifacts:
