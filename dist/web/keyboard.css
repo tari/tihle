@@ -1,0 +1,174 @@
+@media (min-width: 24em) {
+    #keyboard {
+        padding: 12px 6px !important;
+        border-radius: 0 0 12px 12px;
+    }
+}
+#keyboard {
+    width: 23em;
+    max-width: 100vw;
+    background-color: #35383f;
+    padding: 12px 0;
+}
+
+#keyboard__top-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    justify-items: center;
+    margin-bottom: 1.5em;
+}
+
+#keyboard__main {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    justify-items: center;
+}
+
+#keyboard * {
+    font-weight: 800;
+    /* Fonts are provided to ensure stable rendering on all systems;
+       correct appearance is strongly dependent on stable font metrics. */
+    font-family: 'Roboto', 'Noto Sans Math', 'Noto Sans Symbols', 'Noto Sans Symbols2', sans-serif;
+}
+
+#keyboard .arrow-keys {
+    grid-column: 4 / span 2;
+    grid-row: 1 / span 2;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    /* Disable pointer events and enable them on buttons only to ensure
+       the arrow keys block that ends up on top doesn't swallow all events
+       that fall within its box, since the boxes overlap. */
+    pointer-events: none;
+}
+#keyboard .arrow-keys button {
+    font-size: 200%;
+    pointer-events: auto;
+}
+
+#keyboard #arrows-horizontal {
+    justify-content: center;
+}
+#keyboard #arrows-vertical {
+    flex-flow: column;
+}
+#keyboard #arrows-horizontal button {
+    /* Same dimensions as normal keys but rotated;
+       halved in em since the font is larger. */
+    width: 1.15em;
+    height: 2em;
+    /* The space for the arrow keys is wider than it is tall,
+       so define the spacing from the up/down keys with space-between
+       and locate the left/right keys from there by margining them. */
+    margin: 0 .75em;
+}
+#keyboard #arrows-vertical button {
+    width: 2em;
+    height: 1.15em;
+}
+
+/* Arrow keys have a shape that makes them flatter on the
+   outside edge. */
+#keyboard button.kLeft {
+    border-radius: 40% 60% 60% 40% / 50%;
+    /* Hack: align more centrally in the button. */
+    line-height: 1;
+}
+#keyboard button.kRight {
+    border-radius: 60% 40% 40% 60% / 50%;
+    /* Hack: align more centrally in the button. */
+    line-height: 1;
+}
+#keyboard button.kUp {
+    border-radius: 50% / 40% 40% 60% 60%;
+    /* Hack: align more centrally in the button. */
+    line-height: 1;
+}
+#keyboard button.kDown {
+    border-radius: 50% / 60% 60% 40% 40%;
+}
+
+/* .key contains a button and any additional labels. */
+#keyboard .key {
+    display: flex;
+    width: 4em;
+    flex-flow: column;
+    justify-content: flex-end;
+}
+
+/* 2nd-related items are yellowish. */
+#keyboard .k2 {
+    color: #cab54a;
+}
+
+/* Alpha-related items are greenish. */
+#keyboard .kA {
+    color: #2a9b8f;
+}
+
+/* .alt contains the annotations for 2nd/Alpha alternate inputs
+   for keys. They're spaced as far apart as possible. */
+#keyboard .key .alt {
+    display: flex;
+    justify-content: space-between;
+    /* Align text to shared baseline */
+    align-items: flex-end;
+    font-size: 90%;
+}
+
+/* Some keys have small alternate labels because the labels
+   are longer strings. */
+#keyboard .key .alt.kSmall > * {
+    font-size: 70%;
+}
+
+/* Buttons look like physical buttons. */
+#keyboard button {
+    display: block;
+    width: 4em;
+    height: 2.3em;
+    width: 100%;
+    background-color: black;
+    color: white;
+    border-width: 2px;
+    border-style: outset;
+    border-color: #666;
+    border-radius: .8em;
+}
+#keyboard button:active {
+    border-style: inset;
+}
+
+/* Buttons of various kinds are colored differently. */
+#keyboard button.k2 {
+    background-color: #cab54a;
+    border-color: #f1dc71;
+    color: white;
+}
+#keyboard button.kA {
+    background-color: #2a9b8f;
+    border-color: #51c2b6;
+    color: white;
+}
+#keyboard button.kSpecial {
+    background-color: #545d86;
+    border-color: #8a90c1;
+}
+#keyboard button.kNumeric {
+    background-color: #b4b0af;
+    border-color: #ebe7e6;
+    color: #3d3e42;
+    /* Number keys are slightly larger than the others. */
+    height: 2.6em;
+}
+
+/* Graph-row buttons are more rectangular. */
+#keyboard button.kGraph {
+    height: 1.5em;
+}
+#skWindow {
+    /* Hack: text is slightly too long; compress horizontally. */
+    letter-spacing: -0.1em;
+}

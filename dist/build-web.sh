@@ -1,7 +1,6 @@
 #!/bin/sh
 set -ex
 
-SRCDIR=dist/web
 OUTDIR=out/web
 rm -rf ${OUTDIR}/*
 mkdir -p ${OUTDIR}
@@ -16,10 +15,13 @@ cp programs/*.8xp out/programs/
 # "-Clink-args=--preload-file foo" passes --preload-file as
 # link-args and foo bare. Work around it by specifying link-arg
 # twice.
-PRELOAD='-Clink-arg=--preload-file -Clink-arg=out/programs/@/program/s'
+PRELOAD='-Clink-arg=--preload-file -Clink-arg=out/programs/@/programs/'
 CARGO_TARGET_WASM32_UNKNOWN_EMSCRIPTEN_RUSTFLAGS="${PRELOAD}" \
     cargo build --bin tihle --release --locked --target=wasm32-unknown-emscripten
 
-cp ${SRCDIR}/* ${OUTDIR}
+SRCDIR=dist/web
+cp -r ${SRCDIR}/* ${OUTDIR}
 TARGET=target/wasm32-unknown-emscripten/release
 cp ${TARGET}/tihle.js ${TARGET}/tihle.wasm ${TARGET}/deps/tihle.data ${OUTDIR}
+
+find -H ${OUTDIR} -type f ! -name cache.manifest ! -name sw.js -printf '%P\n' > ${OUTDIR}/cache.manifest

@@ -4,26 +4,25 @@
 // and lets Chrome decide (by its mere presence) it should be
 // installable.
 const cacheName = 'tihle-0.3.0a';
-const cachedFiles = [
-    'index.html',
-    'tihle.js',
-    'tihle.wasm',
-    'tihle.data',
-    'tihle.webmanifest',
-    'maskable_icon.png',
-];
 
 /**
  * Block install on precaching files.
  */
 self.addEventListener('install', e => {
     console.log('Handling app install');
-    e.waitUntil(
-        caches.open(cacheName).then(cache => {
-            console.log('Caching app files');
-            return cache.addAll(cachedFiles);
-        })
-    );
+    async function primeCache() {
+        let cache = await caches.open(cacheName);
+        let response = await fetch('cache.manifest');
+        let response_text = await response.text();
+        console.log('Got cache manifest, will add all resources');
+        console.groupCollapsed("Cached resources");
+        console.log(response_text);
+        console.groupEnd();
+
+        await cache.addAll(response_text.split('\n'));
+    }
+
+    e.waitUntil(primeCache());
 });
 
 /**

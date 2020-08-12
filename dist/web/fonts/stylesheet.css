@@ -1,0 +1,44 @@
+@font-face {
+    font-family: 'Roboto';
+    src: local('Roboto Bold'), local('Roboto-Bold'),
+        url('Roboto-Bold.woff2') format('woff2'),
+        url('Roboto-Bold.woff') format('woff');
+        url('Roboto-Bold.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
+    font-display: block;
+}
+
+@font-face {
+    font-family: 'Noto Sans Math';
+    src: local('Noto Sans Math Regular'), local('NotoSansMath-Regular'),
+        url('NotoSansMath-Regular.woff2') format('woff2'),
+        url('NotoSansMath-Regular.woff') format('woff'),
+        url('NotoSansMath-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: block;
+}
+
+@font-face {
+    font-family: 'Noto Sans Symbols';
+    src: local('Noto Sans Symbols Bold'), local('NotoSansSymbols-Bold'),
+        url('NotoSansSymbols-Bold.woff2') format('woff2'),
+        url('NotoSansSymbols-Bold.woff') format('woff');
+        url('NotoSansSymbols-Bold.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
+    font-display: block;
+}
+
+@font-face {
+    font-family: 'Noto Sans Symbols2';
+    src: local('Noto Sans Symbols2 Regular'), local('NotoSansSymbols2-Regular'),
+        url('NotoSansSymbols2-Regular.woff2') format('woff2'),
+        url('NotoSansSymbols2-Regular.woff') format('woff');
+        url('NotoSansSymbols2-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: block;
+}
+
