@@ -127,7 +127,6 @@
 /* Buttons look like physical buttons. */
 #keyboard button {
     display: block;
-    width: 4em;
     height: 2.3em;
     width: 100%;
     background-color: black;

@@ -171,6 +171,24 @@ impl Keyboard {
     }
 }
 
+#[cfg(target_os = "emscripten")]
+mod js_hooks {
+    use num_traits::FromPrimitive;
+    use super::Key;
+
+    #[no_mangle]
+    pub extern "C" fn tihle_keydown(scancode: u8) {
+        let key = Key::from_u8(scancode);
+        info!("Key down: {:?}", key);
+    }
+
+    #[no_mangle]
+    pub extern "C" fn tihle_keyup(scancode: u8) {
+        let key = Key::from_u8(scancode);
+        info!("Key up: {:?}", key);
+    }
+}
+
 /// Keys that can repeat when polled with GetCSC
 static REPEATABLE_KEYS: [Key; 5] = [Key::Up, Key::Right, Key::Down, Key::Left, Key::Del];
 
