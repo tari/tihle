@@ -232,6 +232,57 @@ mod emscripten {
 
         pub fn emscripten_unwind_to_js_event_loop() -> !;
     }
+
+    /// Support for javascript pushing keypresses into the event loop.
+    pub mod input {
+        use num_traits::FromPrimitive;
+        use sdl2::event::Event;
+        use std::convert::TryInto;
+        use std::mem::MaybeUninit;
+        use tihle::keyboard::Key;
+
+        pub static mut EVENT_SUBSYSTEM: MaybeUninit<sdl2::EventSubsystem> = MaybeUninit::uninit();
+
+        fn push_event<F: FnOnce(sdl2::keyboard::Keycode) -> Event>(scancode: u8, event_builder: F) {
+            let key = match Key::from_u8(scancode).and_then(|k| k.try_into().ok()) {
+                None => {
+                    warn!("Scan code {:#04x} does not have a key binding", scancode);
+                    return;
+                }
+                Some(k) => k,
+            };
+            debug!("Key up: {:?}", key);
+
+            let events = unsafe { &*EVENT_SUBSYSTEM.as_ptr() };
+            if let Err(e) = events.push_event(event_builder(key)) {
+                error!("Unable to dispatch key event: {:?}", e);
+            }
+        }
+
+        #[no_mangle]
+        pub extern "C" fn tihle_keydown(scancode: u8) {
+            push_event(scancode, |k| Event::KeyDown {
+                keycode: Some(k),
+                scancode: None,
+                timestamp: 0,
+                window_id: 0,
+                keymod: sdl2::keyboard::Mod::NOMOD,
+                repeat: false,
+            });
+        }
+
+        #[no_mangle]
+        pub extern "C" fn tihle_keyup(scancode: u8) {
+            push_event(scancode, |k| Event::KeyUp {
+                keycode: Some(k),
+                scancode: None,
+                timestamp: 0,
+                window_id: 0,
+                keymod: sdl2::keyboard::Mod::NOMOD,
+                repeat: false,
+            });
+        }
+    }
 }
 
 #[cfg(target_os = "emscripten")]
@@ -251,7 +302,9 @@ fn main() {
 
     unsafe {
         SDL_CONTEXT = MaybeUninit::new(sdl2::init().unwrap());
-        EVENT_PUMP = MaybeUninit::new((&*SDL_CONTEXT.as_ptr()).event_pump().unwrap());
+        let ctx = &*SDL_CONTEXT.as_ptr();
+        EVENT_PUMP = MaybeUninit::new(ctx.event_pump().unwrap());
+        emscripten::input::EVENT_SUBSYSTEM = MaybeUninit::new(ctx.event().unwrap());
     }
 
     let window: &'static mut Window = unsafe {
@@ -344,12 +397,13 @@ fn iterate_main(
     // Process events
     for event in events.poll_iter() {
         use sdl2::event::Event;
+        use std::convert::TryInto;
 
         match event {
             Event::KeyDown {
                 keycode: Some(k), ..
             } => {
-                if let Some(k) = translate_keycode(k) {
+                if let Ok(k) = k.try_into() {
                     debug!("Key down: {:?}", k);
                     emu.keyboard.key_down(k);
                 } else {
@@ -359,7 +413,7 @@ fn iterate_main(
             Event::KeyUp {
                 keycode: Some(k), ..
             } => {
-                if let Some(k) = translate_keycode(k) {
+                if let Ok(k) = k.try_into() {
                     debug!("Key up: {:?}", k);
                     emu.keyboard.key_up(k);
                 }
@@ -399,36 +453,4 @@ fn iterate_main(
     debug!("CPU run complete; swap display");
     video.update(&emu.display);
     false
-}
-
-fn translate_keycode(keycode: sdl2::keyboard::Keycode) -> Option<tihle::keyboard::Key> {
-    use sdl2::keyboard::Keycode;
-    use tihle::keyboard::Key;
-
-    Some(match keycode {
-        Keycode::Left => Key::Left,
-        Keycode::Up => Key::Up,
-        Keycode::Right => Key::Right,
-        Keycode::Down => Key::Down,
-        Keycode::LCtrl | Keycode::RCtrl => Key::Second,
-        Keycode::LShift | Keycode::RShift => Key::Alpha,
-        Keycode::Num0 | Keycode::Kp0 => Key::Zero,
-        Keycode::Num1 | Keycode::Kp1 => Key::One,
-        Keycode::Num2 | Keycode::Kp2 => Key::Two,
-        Keycode::Num3 | Keycode::Kp3 => Key::Three,
-        Keycode::Num4 | Keycode::Kp4 => Key::Four,
-        Keycode::Num5 | Keycode::Kp5 => Key::Five,
-        Keycode::Num6 | Keycode::Kp6 => Key::Six,
-        Keycode::Num7 | Keycode::Kp7 => Key::Seven,
-        Keycode::Num8 | Keycode::Kp8 => Key::Eight,
-        Keycode::Num9 | Keycode::Kp9 => Key::Nine,
-        Keycode::Plus | Keycode::KpPlus => Key::Plus,
-        Keycode::Minus | Keycode::KpMinus => Key::Minus,
-        Keycode::KpMultiply => Key::Multiply,
-        Keycode::KpDivide | Keycode::Slash => Key::Divide,
-        Keycode::Return | Keycode::KpEnter => Key::Enter,
-        Keycode::Period | Keycode::KpPeriod => Key::Period,
-        Keycode::Backspace => Key::Clear,
-        _ => return None,
-    })
 }
