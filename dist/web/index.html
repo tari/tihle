@@ -494,9 +494,6 @@
                     let tihle_keyup = Module.cwrap('tihle_keyup', null, ['number']);
 
                     function handleKey(event, pressed) {
-                        if ((event.buttons & 1) !== 1) {
-                            return;
-                        }
                         let button = event.target;
                         let scancode = button.getAttribute('value');
                         if (!scancode) {
@@ -514,18 +511,38 @@
                     }
 
                     function keyPress(evt) {
+                        if ((evt.buttons & 1) !== 1) {
+                            // Ignore non-primary button
+                            return;
+                        }
                         handleKey(evt, true);
                     }
 
                     function keyRelease(evt) {
+                        if ((evt.buttons & 1) !== 0) {
+                            // Ignore non-primary button
+                            return;
+                        }
                         handleKey(evt, false);
                     }
 
                     for (let button of document.querySelectorAll('#keyboard button')) {
                         button.addEventListener('mousedown', keyPress);
-                        button.addEventListener('mouseover', keyPress);
                         button.addEventListener('mouseup', keyRelease);
-                        button.addEventListener('mouseout', keyRelease);
+                        button.addEventListener('mouseover', evt => {
+                            if ((evt.buttons & 1) !== 1) {
+                                // Ignore if primary button is not pressed.
+                                return;
+                            }
+                            handleKey(evt, true);
+                        });
+                        button.addEventListener('mouseout', evt => {
+                            if ((evt.buttons & 1) !== 1) {
+                                // Ignore unless primary button is being held
+                                return;
+                            }
+                            handleKey(evt, false);
+                        });
                     }
                 }
             ],

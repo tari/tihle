@@ -244,14 +244,14 @@ mod emscripten {
         pub static mut EVENT_SUBSYSTEM: MaybeUninit<sdl2::EventSubsystem> = MaybeUninit::uninit();
 
         fn push_event<F: FnOnce(sdl2::keyboard::Keycode) -> Event>(scancode: u8, event_builder: F) {
-            let key = match Key::from_u8(scancode).and_then(|k| k.try_into().ok()) {
+            let key = Key::from_u8(scancode);
+            let keycode: sdl2::keyboard::Keycode = match key.and_then(|k| k.try_into().ok()) {
                 None => {
-                    warn!("Scan code {:#04x} does not have a key binding", scancode);
+                    warn!("Scan code {:#04x} didn't translate to a SDL key: => {:?}", scancode, key);
                     return;
-                }
-                Some(k) => k,
+                },
+                Some(k) => k
             };
-            debug!("Key up: {:?}", key);
 
             let events = unsafe { &*EVENT_SUBSYSTEM.as_ptr() };
             if let Err(e) = events.push_event(event_builder(key)) {
