@@ -10,6 +10,9 @@ make -C programs
 mkdir -p out/programs
 cp programs/*.8xp out/programs/
 
+BUILDTYPE=${BUILDTYPE:=release}
+CARGO_RELEASE=""
+[ "${BUILDTYPE}" = "release" ] && CARGO_RELEASE=--release
 # Quoting of link-args via environment variable is strange;
 # Cargo seems to just split on spaces, so specifying
 # "-Clink-args=--preload-file foo" passes --preload-file as
@@ -17,11 +20,11 @@ cp programs/*.8xp out/programs/
 # twice.
 PRELOAD='-Clink-arg=--preload-file -Clink-arg=out/programs/@/programs/'
 CARGO_TARGET_WASM32_UNKNOWN_EMSCRIPTEN_RUSTFLAGS="${PRELOAD}" \
-    cargo build --bin tihle --release --locked --target=wasm32-unknown-emscripten
+    cargo build ${CARGO_RELEASE} --bin tihle --locked --target=wasm32-unknown-emscripten
 
 SRCDIR=dist/web
 cp -r ${SRCDIR}/* ${OUTDIR}
-TARGET=target/wasm32-unknown-emscripten/release
+TARGET=target/wasm32-unknown-emscripten/${BUILDTYPE}
 cp ${TARGET}/tihle.js ${TARGET}/tihle.wasm ${TARGET}/deps/tihle.data ${OUTDIR}
 
 # Add the files and their hashes to the serviceworker as a null-terminated

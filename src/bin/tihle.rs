@@ -254,7 +254,7 @@ mod emscripten {
             };
 
             let events = unsafe { &*EVENT_SUBSYSTEM.as_ptr() };
-            if let Err(e) = events.push_event(event_builder(key)) {
+            if let Err(e) = events.push_event(event_builder(keycode)) {
                 error!("Unable to dispatch key event: {:?}", e);
             }
         }
