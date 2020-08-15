@@ -1,7 +1,7 @@
 {
   "name": "tihle",
   "short_name": "tihle",
-  "start_url": "./index.html",
+  "start_url": ".",
   "display": "standalone",
   "orientation": "portrait",
   "theme_color": "#333",

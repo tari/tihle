@@ -3,7 +3,21 @@
 // It doesn't do much; just provides offline access to assets
 // and lets Chrome decide (by its mere presence) it should be
 // installable.
-const cacheName = 'tihle-0.3.0a';
+
+// Take over as controller if a client asks us to while waiting
+// to become active.
+self.addEventListener('message', evt => {
+    if (evt.data === 'skipWaiting') {
+        self.skipWaiting();
+    }
+});
+
+cacheManifest = cacheManifest || [];
+if (!cacheManifest) {
+    console.log("No files given to precache; may not work offline");
+}
+
+const cacheName = 'tihle-0.2.0'
 
 /**
  * Block install on precaching files.
@@ -12,14 +26,12 @@ self.addEventListener('install', e => {
     console.log('Handling app install');
     async function primeCache() {
         let cache = await caches.open(cacheName);
-        let response = await fetch('cache.manifest');
-        let response_text = await response.text();
-        console.log('Got cache manifest, will add all resources');
-        console.groupCollapsed("Cached resources");
-        console.log(response_text);
-        console.groupEnd();
 
-        await cache.addAll(response_text.split('\n'));
+        let cachePaths = cacheManifest.filter(x => x !== null).map(x => x['path'] + '?sha256=' + x['sha256']);
+        console.groupCollapsed("Cached resources");
+        console.log(cachePaths);
+        console.groupEnd();
+        await cache.addAll(cachePaths);
     }
 
     e.waitUntil(primeCache());
@@ -30,18 +42,19 @@ self.addEventListener('install', e => {
  * response.
  */
 self.addEventListener('fetch', e => {
-    e.respondWith(
-        caches.match(e.request).then(r => {
-            console.log('Fetching resource: '+e.request.url);
-            return r || fetch(e.request).then(response => {
-                return caches.open(cacheName).then(cache => {
-                    console.log('Caching new resource: '+e.request.url);
-                    cache.put(e.request, response.clone());
-                    return response;
-                });
-            });
-        })
-    );
+    async function handleFetch() {
+        let cacheResponse = await caches.match(e.request);
+        if (cacheResponse) {
+            return cacheResponse;
+        }
+
+        console.log('Resource %s not cached; fetching it', e.request.url);
+        let networkResponse = await fetch(e.request);
+        cache.put(e.request, networkResponse.clone());
+        return networkResponse;
+    }
+
+    e.respondWith(handleFetch());
 });
 
 /**
