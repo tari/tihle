@@ -30,11 +30,15 @@ cp ${TARGET}/tihle.js ${TARGET}/tihle.wasm ${TARGET}/deps/tihle.data ${OUTDIR}
 # Add the files and their hashes to the serviceworker as a null-terminated
 # array of objects; this ensures the serviceworker script changes when any files
 # change, prompting an update and refresh of the cache.
-find -H ${OUTDIR} -type f ! -name sw.js -printf '%P ' -execdir sha256sum -b {} \; | \
-  awk 'BEGIN { print "let cacheManifest = [" }
-       # index.html refers to the current directory
-       $1 == "index.html" { $1 = "." }
-       { printf "    { path: \"%s\", sha256: \"%s\" },\n", $1, $2 }
-       # Null-terminate since testing for the last line is hard-ish.
-       END { print "    null // Hack for awk\n];" }' | \
+find -H ${OUTDIR} -type f ! -name sw.js -print | sort | xargs cat | sha256sum -b | \
+  awk 'BEGIN { printf "const packageHash = \"" }
+       { printf "%s", $1 }
+       END { print "\";" }' | \
   cat - ${SRCDIR}/sw.js > ${OUTDIR}/sw.js
+
+# Generate the list of files to precache, replacing index.html with a reference
+# to the bare path and ignoring files that shouldn't be cached.
+find -H ${OUTDIR} -type f -printf '%P\n' | \
+  awk '/^index.html$/ { print "."; next }
+       /^(cache.manifest|sw.js)$/ { next }
+       { print $1 }' > ${OUTDIR}/cache.manifest

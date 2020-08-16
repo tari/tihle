@@ -3,6 +3,7 @@
 // It doesn't do much; just provides offline access to assets
 // and lets Chrome decide (by its mere presence) it should be
 // installable.
+/* eslint-env worker */
 
 // Take over as controller if a client asks us to while waiting
 // to become active.
@@ -12,12 +13,10 @@ self.addEventListener('message', evt => {
     }
 });
 
-cacheManifest = cacheManifest || [];
-if (!cacheManifest) {
-    console.log("No files given to precache; may not work offline");
-}
-
-const cacheName = 'tihle-0.2.0'
+// build-web.sh computes a hash over all the app files which identifies
+// the PWA version. This ensures any change to a cached file is reflected
+// in a change to this file so browsers realize there's an update.
+const cacheName = 'tihle-' + packageHash; /* global packageHash */
 
 /**
  * Block install on precaching files.
@@ -25,13 +24,19 @@ const cacheName = 'tihle-0.2.0'
 self.addEventListener('install', e => {
     console.log('Handling app install');
     async function primeCache() {
+        let response = fetch('cache.manifest').then(async response => {
+            if (!response.ok) {
+                throw response;
+            }
+            return response.text();
+        });
         let cache = await caches.open(cacheName);
+        let responseText = await response;
 
-        let cachePaths = cacheManifest.filter(x => x !== null).map(x => x['path'] + '?sha256=' + x['sha256']);
-        console.groupCollapsed("Cached resources");
-        console.log(cachePaths);
+        console.groupCollapsed("Resources to cache");
+        console.log(responseText);
         console.groupEnd();
-        await cache.addAll(cachePaths);
+        await cache.addAll(responseText.split('\n'));
     }
 
     e.waitUntil(primeCache());
@@ -49,8 +54,9 @@ self.addEventListener('fetch', e => {
         }
 
         console.log('Resource %s not cached; fetching it', e.request.url);
+        let cache = caches.open(cacheName);
         let networkResponse = await fetch(e.request);
-        cache.put(e.request, networkResponse.clone());
+        (await cache).put(e.request, networkResponse.clone());
         return networkResponse;
     }
 
