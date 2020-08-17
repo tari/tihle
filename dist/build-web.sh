@@ -40,5 +40,8 @@ find -H ${OUTDIR} -type f ! -name sw.js -print | sort | xargs cat | sha256sum -b
 # to the bare path and ignoring files that shouldn't be cached.
 find -H ${OUTDIR} -type f -printf '%P\n' | \
   awk '/^index.html$/ { print "."; next }
-       /^(cache.manifest|sw.js)$/ { next }
+       /^(cache.manifest|sw.js|package.json)$/ { next }
+       # Ignore non-woff2 font files, assuming browsers that support
+       # service workers also support woff2.
+       /^fonts\/[^.]+\.(woff|ttf)$/ { next }
        { print $1 }' > ${OUTDIR}/cache.manifest
