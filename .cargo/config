@@ -2,6 +2,8 @@
 rustflags = [
     """-Clink-args=-s USE_SDL=2 \
                    -s FORCE_FILESYSTEM=1 \
+                   -s EXPORTED_FUNCTIONS=["_main","_tihle_keydown","_tihle_keyup"] \
+                   -s EXTRA_EXPORTED_RUNTIME_METHODS=["cwrap"] \
                    -s STACK_OVERFLOW_CHECK=1 \
                    -s MALLOC=emmalloc"""
 ]

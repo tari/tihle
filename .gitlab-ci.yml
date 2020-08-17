@@ -57,22 +57,20 @@ build:emscripten:
     - cargo build --bins --release --locked --target=wasm32-unknown-emscripten
   artifacts:
     paths:
+      - programs/
       - target/wasm32-unknown-emscripten/release/
 
 
 package:emscripten:
   stage: package
   needs: ["build:emscripten"]
+  cache:
+    key: emscripten-release
   script:
-    - make -C programs
-    - python3 /emsdk/upstream/emscripten/tools/file_packager.py programs.data --js-output=programs.js --preload programs/phoenix.8xp
-    - mkdir release
-    - cp dist/emscripten-shell.html release/index.html
-    - cp programs.{js,data} release
-    - cp target/wasm32-unknown-emscripten/release/tihle.{js,wasm} release
+    - ./dist/build-web.sh
   artifacts:
     paths:
-      - release/
+      - out/web/
 
 
 pages:
@@ -80,7 +78,7 @@ pages:
   needs: ["package:emscripten"]
   only: [master]
   script:
-    - mv release public
+    - mv out/web public
   artifacts:
     paths:
       - public/

@@ -57,6 +57,76 @@ pub enum Key {
     Del = 0x38,
 }
 
+impl std::convert::TryFrom<sdl2::keyboard::Keycode> for Key {
+    type Error = ();
+
+    fn try_from(keycode: sdl2::keyboard::Keycode) -> Result<Self, Self::Error> {
+        use sdl2::keyboard::Keycode;
+
+        Ok(match keycode {
+            Keycode::Left => Key::Left,
+            Keycode::Up => Key::Up,
+            Keycode::Right => Key::Right,
+            Keycode::Down => Key::Down,
+            Keycode::LCtrl | Keycode::RCtrl => Key::Second,
+            Keycode::LShift | Keycode::RShift => Key::Alpha,
+            Keycode::Num0 | Keycode::Kp0 => Key::Zero,
+            Keycode::Num1 | Keycode::Kp1 => Key::One,
+            Keycode::Num2 | Keycode::Kp2 => Key::Two,
+            Keycode::Num3 | Keycode::Kp3 => Key::Three,
+            Keycode::Num4 | Keycode::Kp4 => Key::Four,
+            Keycode::Num5 | Keycode::Kp5 => Key::Five,
+            Keycode::Num6 | Keycode::Kp6 => Key::Six,
+            Keycode::Num7 | Keycode::Kp7 => Key::Seven,
+            Keycode::Num8 | Keycode::Kp8 => Key::Eight,
+            Keycode::Num9 | Keycode::Kp9 => Key::Nine,
+            Keycode::Plus | Keycode::KpPlus => Key::Plus,
+            Keycode::Minus | Keycode::KpMinus => Key::Minus,
+            Keycode::KpMultiply => Key::Multiply,
+            Keycode::KpDivide | Keycode::Slash => Key::Divide,
+            Keycode::Return | Keycode::KpEnter => Key::Enter,
+            Keycode::Period | Keycode::KpPeriod => Key::Period,
+            Keycode::Backspace => Key::Clear,
+            _ => return Err(()),
+        })
+    }
+}
+
+impl std::convert::TryInto<sdl2::keyboard::Keycode> for Key {
+    type Error = ();
+
+    fn try_into(self) -> Result<sdl2::keyboard::Keycode, Self::Error> {
+        use sdl2::keyboard::Keycode;
+
+        Ok(match self {
+            Key::Left => Keycode::Left,
+            Key::Up => Keycode::Up,
+            Key::Right => Keycode::Right,
+            Key::Down => Keycode::Down,
+            Key::Second => Keycode::LCtrl,
+            Key::Alpha => Keycode::LShift,
+            Key::Zero => Keycode::Kp0,
+            Key::One => Keycode::Kp1,
+            Key::Two => Keycode::Kp2,
+            Key::Three => Keycode::Kp3,
+            Key::Four => Keycode::Kp4,
+            Key::Five => Keycode::Kp5,
+            Key::Six => Keycode::Kp6,
+            Key::Seven => Keycode::Kp7,
+            Key::Eight => Keycode::Kp8,
+            Key::Nine => Keycode::Kp9,
+            Key::Plus => Keycode::KpPlus,
+            Key::Minus => Keycode::KpMinus,
+            Key::Multiply => Keycode::KpMultiply,
+            Key::Divide => Keycode::KpDivide,
+            Key::Enter => Keycode::Return,
+            Key::Period => Keycode::Period,
+            Key::Clear => Keycode::Backspace,
+            _ => return Err(()),
+        })
+    }
+}
+
 pub struct Keyboard {
     /// Bits reset when keys are down; active-low.
     ///
