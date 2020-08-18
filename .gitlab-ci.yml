@@ -36,10 +36,8 @@ build:windows:
     # Cross-compiling for mingw and exception handling is rather fraught:
     # https://github.com/rust-lang/rust/issues/32859
     CARGO_TARGET_I686_PC_WINDOWS_GNU_LINKER: "i686-w64-mingw32-gcc"
-    CARGO_TARGET_I686_PC_WINDOWS_GNU_RUSTFLAGS: "-Cpanic=abort -Clink-args=icon.res.o"
+    CARGO_TARGET_I686_PC_WINDOWS_GNU_RUSTFLAGS: "-Cpanic=abort"
   script:
-    # Link in resources so we have a nice icon
-    - i686-w64-mingw32-windres dist/win/icon.rc icon.res.o
     # Ask sdl2 to statically link against an SDL library it provides for us
     - cargo build --bins --release --locked --target=i686-pc-windows-gnu --features=sdl2/static-link,sdl2/bundled
   artifacts:

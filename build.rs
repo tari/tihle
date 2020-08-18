@@ -21,6 +21,8 @@ fn main() {
         .define("CPU_Z80_USE_LOCAL_HEADER", None)
         .define("CPU_Z80_DEPENDENCIES_H", Some("\"z80bits.h\""))
         .compile("z80_redcode");
+
+    embed_resource::compile("dist/win/tihle.rc");
 }
 
 fn rerun_if_changed<P: AsRef<std::path::Path>>(path: P) {

@@ -1,0 +1,14 @@
+icon ICON "tihle.ico"
+manifest 24 "tihle.exe.manifest"
+versioninfo VERSIONINFO
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904e4"
+        BEGIN
+            VALUE "CompanyName", "Peter Marheine"
+            VALUE "FileDescription", "High-level emulator for TI calculators"
+            VALUE "ProductName", "tihle"
+        END
+    END
+END
