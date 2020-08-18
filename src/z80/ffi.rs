@@ -140,13 +140,6 @@ impl std::fmt::Debug for State {
 pub struct Z80 {
     pub cycles: usize,
     pub context: Ctx,
-    pub read: Option<extern "C" fn(context: Ctx, address: u16) -> u8>,
-    pub write: Option<extern "C" fn(context: Ctx, address: u16, value: u8)>,
-    pub port_in: Option<extern "C" fn(context: Ctx, port: u16) -> u8>,
-    pub port_out: Option<extern "C" fn(context: Ctx, port: u16, value: u8)>,
-    pub int_data: Option<extern "C" fn(context: Ctx) -> u32>,
-    pub halt: Option<extern "C" fn(context: Ctx, state: u8)>,
-    pub trap: Option<extern "C" fn(context: Ctx, trap_no: u16) -> usize>,
     pub regs: State,
 
     // Internal fields below

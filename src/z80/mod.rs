@@ -28,13 +28,6 @@ impl Z80 {
             z80: ffi::Z80 {
                 cycles: 0,
                 context: ptr::null_mut(),
-                read: Some(Self::handle_read),
-                write: Some(Self::handle_write),
-                port_in: Some(Self::handle_io_read),
-                port_out: Some(Self::handle_io_write),
-                int_data: Some(Self::handle_mode0_vector),
-                halt: None,
-                trap: Some(Self::handle_trap),
                 ..ffi::Z80::new()
             },
         };
@@ -52,38 +45,38 @@ impl Z80 {
         (&mut *core, &mut *ctx)
     }
 
-    extern "C" fn handle_read(ctx: *mut c_void, address: u16) -> u8 {
+    #[no_mangle]
+    pub extern "C" fn tihle_z80_handle_read(ctx: *mut c_void, address: u16) -> u8 {
         let (core, emu) = unsafe { Self::ctx_from_ptr(ctx) };
 
         emu.read_memory(core, address)
     }
 
-    extern "C" fn handle_write(ctx: ffi::Ctx, address: u16, value: u8) {
+    #[no_mangle]
+    pub extern "C" fn tihle_z80_handle_write(ctx: ffi::Ctx, address: u16, value: u8) {
         let (core, emu) = unsafe { Self::ctx_from_ptr(ctx) };
 
         emu.write_memory(core, address, value)
     }
 
-    extern "C" fn handle_io_read(ctx: ffi::Ctx, address: u16) -> u8 {
+    #[no_mangle]
+    pub extern "C" fn tihle_z80_handle_port_read(ctx: ffi::Ctx, address: u16) -> u8 {
         let (core, emu) = unsafe { Self::ctx_from_ptr(ctx) };
 
         emu.read_io(core, address as u8)
     }
 
-    extern "C" fn handle_io_write(ctx: ffi::Ctx, address: u16, value: u8) {
+    #[no_mangle]
+    pub extern "C" fn tihle_z80_handle_port_write(ctx: ffi::Ctx, address: u16, value: u8) {
         let (core, emu) = unsafe { Self::ctx_from_ptr(ctx) };
 
         emu.write_io(core, address as u8, value);
     }
 
-    extern "C" fn handle_trap(ctx: ffi::Ctx, trap_no: u16) -> usize {
+    #[no_mangle]
+    pub extern "C" fn tihle_z80_handle_trap(ctx: ffi::Ctx, trap_no: u16) -> usize {
         let (core, emu) = unsafe { Self::ctx_from_ptr(ctx) };
         emu.trap(trap_no, core)
-    }
-
-    #[cold]
-    extern "C" fn handle_mode0_vector(_ctx: ffi::Ctx) -> u32 {
-        0
     }
 
     /// Run the core for the given number of cycles.

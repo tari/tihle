@@ -66,14 +66,26 @@ typedef zuint8 (* Instruction)(Z80 *object);
 
 /* MARK: - Macros & Functions: Callback */
 
-#define READ_8(address)		object->read	(object->context, (zuint16)(address))
-#define WRITE_8(address, value) object->write	(object->context, (zuint16)(address), (zuint8)(value))
-#define IN(port)		object->in	(object->context, (zuint16)(port   ))
-#define OUT(port, value)	object->out	(object->context, (zuint16)(port   ), (zuint8)(value))
-#define INT_DATA		object->int_data(object->context)
+zuint8 tihle_z80_handle_read(void *context, zuint16 address);
+void tihle_z80_handle_write(void *context, zuint16 address, zuint8 value);
+zuint8 tihle_z80_handle_port_read(void *context, zuint16 port);
+void tihle_z80_handle_port_write(void *context, zuint16 port, zuint8 value);
+size_t tihle_z80_handle_trap(void *context, zuint16 trap_no);
+
+static Z_INLINE zuint32 tihle_z80_mode0_int_data(void *context) {
+  return 0;
+}
+
+static Z_INLINE void tihle_z80_halt(void *context, zboolean set) {}
+
+#define READ_8(address)		tihle_z80_handle_read(object->context, (zuint16)(address))
+#define WRITE_8(address, value) tihle_z80_handle_write(object->context, (zuint16)(address), (zuint8)(value))
+#define IN(port)		tihle_z80_handle_port_read(object->context, (zuint16)(port   ))
+#define OUT(port, value)	tihle_z80_handle_port_write(object->context, (zuint16)(port   ), (zuint8)(value))
+#define INT_DATA		tihle_z80_mode0_int_data(object->context)
 #define READ_OFFSET(address)	((zsint8)READ_8(address))
-#define SET_HALT		if (object->halt != NULL) object->halt(object->context, TRUE )
-#define CLEAR_HALT		if (object->halt != NULL) object->halt(object->context, FALSE)
+#define SET_HALT		tihle_z80_halt(object->context, TRUE)
+#define CLEAR_HALT		tihle_z80_halt(object->context,  FALSE)
 
 
 static Z_INLINE zuint16 read_16bit(Z80 *object, zuint16 address)
@@ -1426,7 +1438,7 @@ INSTRUCTION(ED_illegal) {PC += 2; return 8;}
 INSTRUCTION(ED_tihle_trap) {
   PC += 4;
   uint16_t trap_no = (READ_8(PC - 2) | (READ_8(PC - 1) << 8));
-  CYCLES += object->trap(object->context, trap_no);
+  CYCLES += tihle_z80_handle_trap(object->context, trap_no);
   return 0;
 }
 

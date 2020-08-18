@@ -51,57 +51,6 @@ typedef struct {
 
 	void *context;
 
-	/** Callback: Called when the CPU needs to read 8 bits from memory.
-	  * @param context The value of the member @c context.
-	  * @param address The memory address to read from.
-	  * @return The 8 bits read from memory. */
-
-	zuint8 (* read)(void *context, zuint16 address);
-
-	/** Callback: Called when the CPU needs to write 8 bits to memory.
-	  * @param context The value of the member @c context.
-	  * @param address The memory address to write to.
-	  * @param value The value to write. */
-
-	void (* write)(void *context, zuint16 address, zuint8 value);
-
-	/** Callback: Called when the CPU needs to read 8 bits from an I/O port.
-	  * @param context The value of the member @c context.
-	  * @param port The number of the I/O port to read from.
-	  * @return The 8 bits read from the I/O port. */
-
-	zuint8 (* in)(void *context, zuint16 port);
-
-	/** Callback: Called when the CPU needs to write 8 bits to an I/O port.
-	  * @param context The value of the member @c context.
-	  * @param port The number of the I/O port to write to.
-	  * @param value The value to write. */
-
-	void (* out)(void *context, zuint16 port, zuint8 value);
-
-	/** Callback: Called when the CPU needs to read one instruction from
-	  * the data bus to service a maskable interrupt (INT) in mode 0.
-	  * @param context The value of the member @c context.
-	  * @return A 32-bit value containing the bytes of one instruction. The
-	  * instruction must begin at the most significant byte (big endian). */
-
-	zuint32 (* int_data)(void *context);
-
-	/** Callback: Called when the CPU enters or exits the halt state.
-	  * @param context The value of the member @c context.
-	  * @param state @c TRUE if halted; @c FALSE otherwise.
-	  * @note This callback is optional and must be set to @c NULL if not
-	  * used. */
-
-	void (* halt)(void *context, zboolean state);
-
-	/** Callback: called when the CPU executes a trap instruction.
-	 * @param context The value of the member @c context.
-	 * @param trap_no The ID of the trap executed (the 16-bit value
-	 * specified in the instruction). */
-
-	zusize (* trap)(void *context, zuint16 trap_no);
-
 	/** CPU registers and internal bits.
 	  * @details It contains the state of the registers, as well as the
 	  * interrupt flip-flops, variables related to interrupts and other
