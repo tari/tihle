@@ -110,6 +110,15 @@ static FLASH_IMAGE: &[(u8, &[u8])] = &[
     (4, include_bytes!("mirageos.bin")),
 ];
 
+/// Kinds of memory access
+#[derive(Debug, PartialEq, Eq)]
+enum MemoryAccessKind {
+    /// The data being accessed is treated as an instruction
+    Instruction,
+    /// The data being accessed is treated as plain data
+    Data
+}
+
 impl Emulator {
     /// Construct a new emulator.
     ///
@@ -295,9 +304,9 @@ impl Emulator {
     }
 
     #[inline]
-    fn read_memory(&mut self, _core: &mut Z80, addr: u16) -> u8 {
+    fn read_memory(&mut self, _core: &mut Z80, addr: u16, access_kind: MemoryAccessKind) -> u8 {
         let byte = self.mem[addr];
-        trace!("Memory read {:04X} -> {:02X}", addr, byte);
+        trace!("Memory read {:?} {:04X} -> {:02X}", access_kind, addr, byte);
         byte
     }
 

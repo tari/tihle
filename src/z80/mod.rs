@@ -1,4 +1,4 @@
-use crate::Emulator;
+use crate::{Emulator, MemoryAccessKind};
 use bitflags::bitflags;
 use std::ffi::c_void;
 use std::ptr;
@@ -49,7 +49,14 @@ impl Z80 {
     pub extern "C" fn tihle_z80_handle_read(ctx: *mut c_void, address: u16) -> u8 {
         let (core, emu) = unsafe { Self::ctx_from_ptr(ctx) };
 
-        emu.read_memory(core, address)
+        emu.read_memory(core, address, MemoryAccessKind::Data)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn tihle_z80_handle_instruction_read(ctx: &mut c_void, address: u16) -> u8 {
+        let (core, emu) = unsafe { Self::ctx_from_ptr(ctx) };
+
+        emu.read_memory(core, address, MemoryAccessKind::Instruction)
     }
 
     #[no_mangle]

@@ -66,19 +66,33 @@ typedef zuint8 (* Instruction)(Z80 *object);
 
 /* MARK: - Macros & Functions: Callback */
 
+// Read a byte from memory; data access
 zuint8 tihle_z80_handle_read(void *context, zuint16 address);
+// Read a byte from memory; instruction read
+//
+// This only matches on the first byte of an instruction, intended to
+// allow breakpoints to trigger at the desired instruction without possible
+// false positives from data reads.
+zuint8 tihle_z80_handle_instruction_read(void *context, zuint16 address);
+// Write a byte to memory
 void tihle_z80_handle_write(void *context, zuint16 address, zuint8 value);
+// Read a byte from I/O space (`in`)
 zuint8 tihle_z80_handle_port_read(void *context, zuint16 port);
+// Write a byte to I/O space (`out`)
 void tihle_z80_handle_port_write(void *context, zuint16 port, zuint8 value);
+// Handle a trap instruction
 size_t tihle_z80_handle_trap(void *context, zuint16 trap_no);
 
+// Get value from data bus for mode 0 interrupt vector
 static Z_INLINE zuint32 tihle_z80_mode0_int_data(void *context) {
   return 0;
 }
 
+// Handle entry or exit from CPU halt
 static Z_INLINE void tihle_z80_halt(void *context, zboolean set) {}
 
 #define READ_8(address)		tihle_z80_handle_read(object->context, (zuint16)(address))
+#define READ_INSTR_8(address)   tihle_z80_handle_instruction_read(object->context, (zuint16)(address))
 #define WRITE_8(address, value) tihle_z80_handle_write(object->context, (zuint16)(address), (zuint8)(value))
 #define IN(port)		tihle_z80_handle_port_read(object->context, (zuint16)(port   ))
 #define OUT(port, value)	tihle_z80_handle_port_write(object->context, (zuint16)(port   ), (zuint8)(value))
@@ -1606,7 +1620,7 @@ CPU_Z80_API zusize z80_run(Z80 *object, zusize cycles)
 		/*-----------------------------------------------.
 		| Execute instruction and update consumed cycles |
 		'-----------------------------------------------*/
-		CYCLES += instruction_table[BYTE0 = READ_8(PC)](object);
+		CYCLES += instruction_table[BYTE0 = READ_INSTR_8(PC)](object);
 		}
 
 	/*---------------.
