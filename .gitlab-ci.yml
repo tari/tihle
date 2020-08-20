@@ -52,28 +52,17 @@ build:emscripten:
   cache:
     key: emscripten-release
   script:
-    - cargo build --bins --release --locked --target=wasm32-unknown-emscripten
-  artifacts:
-    paths:
-      - programs/
-      - target/wasm32-unknown-emscripten/release/
-
-
-package:emscripten:
-  stage: package
-  needs: ["build:emscripten"]
-  cache:
-    key: emscripten-release
-  script:
     - ./dist/build-web.sh
   artifacts:
     paths:
       - out/web/
+      - programs/
+      - target/wasm32-unknown-emscripten/release/
 
 
 pages:
   stage: deploy
-  needs: ["package:emscripten"]
+  needs: ["build:emscripten"]
   only: [master]
   script:
     - mv out/web public
