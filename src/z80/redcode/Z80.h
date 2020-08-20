@@ -59,6 +59,15 @@ typedef struct {
 
 	ZZ80State state;
 
+	/**
+	 * If nonzero, requests the core yield immediately.
+	 *
+	 * This field is tested after each instruction, and if nonzero
+	 * the core will yield back to the caller after clearing it
+	 * back to zero.
+	 */
+  zuint8 yield_requested;
+
 	/** Backup of the 7th bit of the R register.
 	  * @details The value of the R register is incremented as instructions
 	  * are executed, but its most significant bit remains unchanged. For

@@ -133,4 +133,9 @@ impl Z80 {
     pub fn is_halted(&self) -> bool {
         self.z80.is_halted()
     }
+
+    /// Request that the core yield back to the emulator at the next opportunity.
+    pub fn request_yield(&mut self) {
+        self.z80.yield_requested = true as u8;
+    }
 }

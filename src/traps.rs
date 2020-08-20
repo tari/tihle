@@ -38,7 +38,9 @@ impl Trap {
         match *self {
             Reset => {
                 emu.terminate.set(true);
-                Emulator::FORCE_YIELD
+                core.request_yield();
+                info!("Emulation terminated due to reset trap");
+                0
             }
             RomCall => bcalls::bcall_trap(emu, core),
             RomCallReturn => bcalls::bcall_trap_return(emu, core),

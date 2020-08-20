@@ -1533,7 +1533,7 @@ CPU_Z80_API zusize z80_run(Z80 *object, zusize cycles)
 	/*------------------------------.
 	| Execute until cycles consumed |
 	'------------------------------*/
-	while (CYCLES < cycles)
+	while (CYCLES < cycles && !object->yield_requested)
 		{
 		/*--------------------------------------.
 		| Jump to NMI handler if NMI pending... |
@@ -1627,6 +1627,9 @@ CPU_Z80_API zusize z80_run(Z80 *object, zusize cycles)
 	| Restore R7 bit |
 	'---------------*/
 	R = R_ALL;
+
+	// Clear yield flag
+	object->yield_requested = 0;
 
 	/*-----------------------.
 	| Return consumed cycles |

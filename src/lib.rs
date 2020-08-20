@@ -143,12 +143,6 @@ impl Emulator {
         !self.terminate.get()
     }
 
-    /// Cycle count to force the core to stop executing.
-    ///
-    /// This is an arbitrarily large number of cycles, but not so large that
-    ///
-    const FORCE_YIELD: usize = usize::MAX / 2;
-
     fn duration_to_cycles(&self, duration: Duration) -> usize {
         let cycle_secs = 1.0 / self.clock_rate as f64;
 

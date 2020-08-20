@@ -141,6 +141,7 @@ pub struct Z80 {
     pub cycles: usize,
     pub context: Ctx,
     pub regs: State,
+    pub yield_requested: u8,
 
     // Internal fields below
     pub r7: u8,
