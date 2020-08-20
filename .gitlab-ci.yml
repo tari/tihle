@@ -64,6 +64,7 @@ pages:
   stage: deploy
   needs: ["build:emscripten"]
   only: [master]
+  image: "alpine:latest"
   script:
     - mv out/web public
   artifacts:
