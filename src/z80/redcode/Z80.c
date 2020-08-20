@@ -83,23 +83,17 @@ void tihle_z80_handle_port_write(void *context, zuint16 port, zuint8 value);
 // Handle a trap instruction
 size_t tihle_z80_handle_trap(void *context, zuint16 trap_no);
 
-// Get value from data bus for mode 0 interrupt vector
-static Z_INLINE zuint32 tihle_z80_mode0_int_data(void *context) {
-  return 0;
-}
-
-// Handle entry or exit from CPU halt
-static Z_INLINE void tihle_z80_halt(void *context, zboolean set) {}
-
 #define READ_8(address)		tihle_z80_handle_read(object->context, (zuint16)(address))
 #define READ_INSTR_8(address)   tihle_z80_handle_instruction_read(object->context, (zuint16)(address))
 #define WRITE_8(address, value) tihle_z80_handle_write(object->context, (zuint16)(address), (zuint8)(value))
 #define IN(port)		tihle_z80_handle_port_read(object->context, (zuint16)(port   ))
 #define OUT(port, value)	tihle_z80_handle_port_write(object->context, (zuint16)(port   ), (zuint8)(value))
-#define INT_DATA		tihle_z80_mode0_int_data(object->context)
 #define READ_OFFSET(address)	((zsint8)READ_8(address))
-#define SET_HALT		tihle_z80_halt(object->context, TRUE)
-#define CLEAR_HALT		tihle_z80_halt(object->context,  FALSE)
+// Unused: get 32 bits from the data bus for a mode 0 interrupt
+#define INT_DATA		0
+// Unused: handle entry/exit from HALT state
+#define SET_HALT
+#define CLEAR_HALT
 
 
 static Z_INLINE zuint16 read_16bit(Z80 *object, zuint16 address)
