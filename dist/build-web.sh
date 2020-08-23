@@ -20,7 +20,8 @@ CARGO_RELEASE=""
 # twice.
 PRELOAD='-Clink-arg=--preload-file -Clink-arg=out/programs/@/programs/'
 CARGO_TARGET_WASM32_UNKNOWN_EMSCRIPTEN_RUSTFLAGS="${PRELOAD}" \
-    cargo build ${CARGO_RELEASE} --bin tihle --locked --target=wasm32-unknown-emscripten
+    cargo build ${CARGO_RELEASE} --bin tihle --target=wasm32-unknown-emscripten \
+      --locked --no-default-features
 
 SRCDIR=dist/web
 cp -r ${SRCDIR}/* ${OUTDIR}
