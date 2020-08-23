@@ -1,6 +1,6 @@
 use crate::{Emulator, Z80};
 use serde::{Deserialize, Serialize};
-use std::io::{BufRead, BufReader, BufWriter, Result as IoResult, Write};
+use std::io::{BufReader, BufWriter, Result as IoResult};
 use std::net::{TcpListener, ToSocketAddrs};
 use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 
@@ -39,6 +39,7 @@ pub enum Response {
 pub struct Debugger {
     commands_in: Receiver<Command>,
     responses_out: Sender<Response>,
+    commands_executed: u32,
     paused: bool,
 }
 
@@ -83,15 +84,30 @@ impl Debugger {
         Debugger {
             commands_in: emu_in,
             responses_out: emu_out,
+            commands_executed: 0,
             paused: false,
         }
     }
 
-    /// Process debugger commands, returning the number that were processed and whether the
-    /// system is currently allowed to run.
-    pub fn run(&mut self, _emu: &mut Emulator, cpu: &mut Z80) -> (usize, bool) {
-        let mut n = 0;
+    #[cfg(test)]
+    pub fn create_for_test() -> (Self, Sender<Command>, Receiver<Response>) {
+        let (cmd_tx, cmd_rx) = channel();
+        let (resp_tx, resp_rx) = channel();
 
+        (
+            Self {
+                commands_in: cmd_rx,
+                responses_out: resp_tx,
+                commands_executed: 0,
+                paused: false,
+            },
+            cmd_tx,
+            resp_rx,
+        )
+    }
+
+    /// Process debugger commands, returning whether the system is currently allowed to run.
+    pub fn run(&mut self, _emu: &mut Emulator, cpu: &mut Z80) -> bool {
         loop {
             let command = match self.commands_in.try_recv() {
                 Ok(command) => command,
@@ -120,11 +136,14 @@ impl Debugger {
             if let Err(e) = self.responses_out.send(response) {
                 error!("Debugger died, unable to send response: {:?}", e);
             }
-            n += 1;
+            self.commands_executed = self.commands_executed.wrapping_add(1);
         }
 
-        trace!("Debugger executed {} action(s) in this iteration", n);
-        (n, self.paused)
+        trace!(
+            "Debugger executed {} action(s) total",
+            self.commands_executed
+        );
+        self.paused
     }
 
     fn read_registers(&mut self, cpu: &Z80) -> Response {
