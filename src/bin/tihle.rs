@@ -141,6 +141,7 @@ impl<'a> Video<'a> {
 
 #[cfg(not(target_os = "emscripten"))]
 fn main() {
+    use clap::{App, Arg};
     use std::time::Instant;
     use tihle::built_info;
 
@@ -348,6 +349,7 @@ fn main() {
                 &mut *EVENT_PUMP.as_mut_ptr(),
                 &mut *emulator,
                 &mut *CPU.as_mut_ptr(),
+                &mut None,
             );
             if emulator.is_running() {
                 1
