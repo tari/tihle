@@ -151,7 +151,29 @@ pub struct Z80 {
 
 impl Z80 {
     pub fn new() -> Self {
-        unsafe { mem::zeroed() }
+        // Ensure the core callbacks are retained for linking, since
+        // rustc seems to discard them in some situations even though
+        // they are public (when building a binary instead of a library?)
+        #[used]
+        static _USED_CALLBACKS: (
+            extern "C" fn(*mut c_void, u16) -> u8,
+            extern "C" fn(*mut c_void, u16) -> u8,
+            extern "C" fn(*mut c_void, u16, u8),
+            extern "C" fn(*mut c_void, u16) -> u8,
+            extern "C" fn(*mut c_void, u16, u8),
+            extern "C" fn(*mut c_void, u16) -> usize,
+        ) = (
+            super::Z80::tihle_z80_handle_read,
+            super::Z80::tihle_z80_handle_instruction_read,
+            super::Z80::tihle_z80_handle_write,
+            super::Z80::tihle_z80_handle_port_read,
+            super::Z80::tihle_z80_handle_port_write,
+            super::Z80::tihle_z80_handle_trap,
+        );
+
+        unsafe {
+            mem::zeroed()
+        }
     }
 
     pub fn is_halted(&self) -> bool {

@@ -81,7 +81,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ("addbreakpoint", Some(m)) => {
                 let addr = parse_address(m.value_of("address").unwrap());
                 Command::AddBreakpoint(addr)
-            },
+            }
             (c, _) => panic!("BUG: command {:?} is defined but not implemented", c),
         };
 
@@ -108,14 +108,14 @@ fn try_parse_address(s: &str) -> Option<u16> {
 
     match u16::from_str_radix(s, base) {
         Ok(x) => Some(x),
-        Err(_) => None
+        Err(_) => None,
     }
 }
 
 fn validate_address(s: String) -> Result<(), String> {
     match try_parse_address(&s) {
         Some(_) => Ok(()),
-        None => Err("not a valid 16-bit address".into())
+        None => Err("not a valid 16-bit address".into()),
     }
 }
 

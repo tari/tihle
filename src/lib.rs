@@ -71,9 +71,6 @@ pub struct Emulator {
     pub keyboard: keyboard::Keyboard,
     /// If true, emulation has terminated.
     terminate: Cell<bool>,
-
-    #[cfg(test)]
-    pub debug_commands_executed: usize,
 }
 
 pub struct Builder {
@@ -116,13 +113,6 @@ impl Builder {
             display: Display::new(),
             keyboard: keyboard::Keyboard::new(),
             terminate: Cell::new(true),
-
-            /// For tests, report the number of debug commands that have been executed.
-            ///
-            /// This allows tests to wait until their commands have been processed, since
-            /// the time it takes to handle them may vary due to thread scheduling.
-            #[cfg(test)]
-            debug_commands_executed: 0,
         }
     }
 }
@@ -173,11 +163,7 @@ impl Emulator {
     ) -> Option<Duration> {
         // Always process debugger actions.
         if let Some(dbg) = debugger {
-            let (_actions, paused) = dbg.run(self, cpu);
-            #[cfg(test)]
-            {
-                self.debug_commands_executed += _actions;
-            }
+            let paused = dbg.run(self, cpu);
             if paused {
                 debug!("Debugger is paused, not running CPU");
                 return None;

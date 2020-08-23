@@ -53,7 +53,7 @@ impl Z80 {
     }
 
     #[no_mangle]
-    pub extern "C" fn tihle_z80_handle_instruction_read(ctx: &mut c_void, address: u16) -> u8 {
+    pub extern "C" fn tihle_z80_handle_instruction_read(ctx: *mut c_void, address: u16) -> u8 {
         let (core, emu) = unsafe { Self::ctx_from_ptr(ctx) };
 
         emu.read_memory(core, address, MemoryAccessKind::Instruction)
