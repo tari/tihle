@@ -53,6 +53,7 @@ pub mod include {
     pub mod tios;
 }
 
+use crate::debug::Debugger;
 pub use display::Display;
 pub use interrupt::InterruptController;
 pub use memory::Memory;
@@ -70,10 +71,6 @@ pub struct Emulator {
     pub keyboard: keyboard::Keyboard,
     /// If true, emulation has terminated.
     terminate: Cell<bool>,
-    #[cfg(feature = "remote-debug")]
-    pub debug: debug::RemoteDebugger,
-    #[cfg(not(feature = "remote-debug"))]
-    debug: debug::DummyDebugger,
 
     #[cfg(test)]
     pub debug_commands_executed: usize,
@@ -119,7 +116,6 @@ impl Builder {
             display: Display::new(),
             keyboard: keyboard::Keyboard::new(),
             terminate: Cell::new(true),
-            debug: Default::default(),
 
             /// For tests, report the number of debug commands that have been executed.
             ///
@@ -169,12 +165,23 @@ impl Emulator {
 
     /// Run the emulator for up to `max_step`, returning the amount of time
     /// the emulated CPU ran for or None if the CPU is not running.
-    pub fn run(&mut self, cpu: &mut Z80, max_step: Duration) -> Option<Duration> {
+    pub fn run(
+        &mut self,
+        cpu: &mut Z80,
+        debugger: Option<&mut Debugger>,
+        max_step: Duration,
+    ) -> Option<Duration> {
         // Always process debugger actions.
-        let _actions = self.debug.run();
-        #[cfg(test)]
-        {
-            self.debug_commands_executed += _actions;
+        if let Some(dbg) = debugger {
+            let (_actions, paused) = dbg.run(self, cpu);
+            #[cfg(test)]
+            {
+                self.debug_commands_executed += _actions;
+            }
+            if paused {
+                debug!("Debugger is paused, not running CPU");
+                return None;
+            }
         }
 
         if !self.is_running() {
