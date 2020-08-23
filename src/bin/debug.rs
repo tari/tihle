@@ -46,7 +46,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .about("Exit the debugger")
                 .alias("quit"),
         )
-        .subcommand(SubCommand::with_name("continue").about("Resume execution"));
+        .subcommand(SubCommand::with_name("version").about("Get target version information"))
+        .subcommand(SubCommand::with_name("pause").about("Pause execution immediately"))
+        .subcommand(SubCommand::with_name("continue").about("Resume execution"))
+        .subcommand(SubCommand::with_name("getregs").about("Get the values of all registers"))
+        .subcommand(
+            SubCommand::with_name("addbreakpoint")
+                .alias("mkbp")
+                .about("Add a breakpoint")
+                .arg(
+                    Arg::with_name("address")
+                        .required(true)
+                        .validator(validate_address)
+                        .help("Address to break at"),
+                ),
+        );
 
     loop {
         let s = line_editor.readline("tihle> ")?;
@@ -60,7 +74,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let command = match matches.subcommand() {
             ("exit", _) => break,
+            ("version", _) => Command::Version,
+            ("pause", _) => Command::Pause,
             ("continue", _) => Command::Resume,
+            ("getregs", _) => Command::GetRegisters,
+            ("addbreakpoint", Some(m)) => {
+                let addr = parse_address(m.value_of("address").unwrap());
+                Command::AddBreakpoint(addr)
+            },
             (c, _) => panic!("BUG: command {:?} is defined but not implemented", c),
         };
 
@@ -72,4 +93,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+fn try_parse_address(s: &str) -> Option<u16> {
+    let (s, base) = if s.starts_with("$") {
+        (&s[1..], 16)
+    } else if s.starts_with("0x") || s.starts_with("0X") {
+        (&s[2..], 16)
+    } else if s.starts_with("0b") || s.starts_with("0B") {
+        (&s[2..], 2)
+    } else {
+        (&s[..], 10)
+    };
+
+    match u16::from_str_radix(s, base) {
+        Ok(x) => Some(x),
+        Err(_) => None
+    }
+}
+
+fn validate_address(s: String) -> Result<(), String> {
+    match try_parse_address(&s) {
+        Some(_) => Ok(()),
+        None => Err("not a valid 16-bit address".into())
+    }
+}
+
+fn parse_address(s: &str) -> u16 {
+    try_parse_address(s).unwrap()
 }

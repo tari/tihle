@@ -1,12 +1,15 @@
 #[macro_use]
 extern crate log;
 
+use clap::{App, Arg};
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::rect::Rect;
 use sdl2::render::TextureCreator;
 use sdl2::video::WindowContext;
 use std::fs::File;
+use std::path::Path;
 use std::time::Duration;
+use tihle::debug::Debugger;
 use tihle::{Display, Emulator, Z80};
 
 const DISPLAY_SCALE: usize = 4;
@@ -135,39 +138,26 @@ impl<'a> Video<'a> {
     }
 }
 
-fn output_build_info() {
-    use tihle::built_info;
-
-    eprintln!(
-        "tihle version {} for {}, compiled {}",
-        built_info::PKG_VERSION,
-        built_info::TARGET,
-        built_info::BUILT_TIME_UTC
-    );
-    if built_info::DEBUG {
-        eprintln!("This is a DEBUG build, from {}", built_info::RUSTC_VERSION);
-    }
-
-    #[cfg(feature = "git-build-info")]
-    {
-        eprintln!(
-            "Compiled from git revision {} (tree {})",
-            built_info::GIT_VERSION.unwrap_or("<unknown>"),
-            match built_info::GIT_DIRTY {
-                None => "unknown",
-                Some(true) => "dirty",
-                Some(false) => "clean",
-            }
-        );
-    }
-}
-
 #[cfg(not(target_os = "emscripten"))]
 fn main() {
     use std::time::Instant;
+    use tihle::built_info;
 
     env_logger::init();
-    output_build_info();
+    let args = App::new(built_info::PKG_NAME)
+        .about("TI-8x calculator emulator")
+        .author(built_info::PKG_AUTHORS)
+        .version(built_info::PKG_VERSION)
+        .arg(
+            Arg::with_name("debug")
+                .short("d")
+                .long("debug")
+                .value_name("ADDRESS:PORT")
+                .help("Listen for remote debug connections")
+                .takes_value(true),
+        )
+        .arg(Arg::with_name("program").help("Program file to load on startup"))
+        .get_matches();
 
     let sdl_context = sdl2::init().unwrap();
 
@@ -178,8 +168,9 @@ fn main() {
 
     let mut emulator = tihle::Emulator::new();
     let mut cpu = tihle::Z80::new();
+    let mut debugger: Option<Debugger> = args.value_of("debug").map(Debugger::create);
 
-    if let Some(path) = std::env::args().skip(1).next() {
+    if let Some(path) = args.value_of_os("program") {
         load_program(&mut emulator, &mut cpu, &path);
     }
 
@@ -192,6 +183,7 @@ fn main() {
             &mut events,
             &mut emulator,
             &mut cpu,
+            &mut debugger,
         ) {
             break;
         }
@@ -245,10 +237,13 @@ mod emscripten {
             let key = Key::from_u8(scancode);
             let keycode: sdl2::keyboard::Keycode = match key.and_then(|k| k.try_into().ok()) {
                 None => {
-                    warn!("Scan code {:#04x} didn't translate to a SDL key: => {:?}", scancode, key);
+                    warn!(
+                        "Scan code {:#04x} didn't translate to a SDL key: => {:?}",
+                        scancode, key
+                    );
                     return;
-                },
-                Some(k) => k
+                }
+                Some(k) => k,
             };
 
             let events = unsafe { &*EVENT_SUBSYSTEM.as_ptr() };
@@ -369,8 +364,12 @@ fn main() {
     }
 }
 
-fn load_program(emulator: &mut Emulator, mut cpu: &mut Z80, path: &str) {
-    match File::open(path) {
+fn load_program<P: AsRef<Path> + std::fmt::Debug>(
+    emulator: &mut Emulator,
+    mut cpu: &mut Z80,
+    path: P,
+) {
+    match File::open(path.as_ref()) {
         Ok(f) => {
             if let Err(e) = emulator.load_program(&mut cpu, f) {
                 error!("Failed to load program from {:?}: {:?}", path, e);
@@ -391,6 +390,7 @@ fn iterate_main(
     events: &mut sdl2::EventPump,
     emu: &mut Emulator,
     cpu: &mut Z80,
+    debugger: &mut Option<Debugger>,
 ) -> bool {
     // Process events
     for event in events.poll_iter() {
@@ -441,7 +441,7 @@ fn iterate_main(
     while frame_time != ZERO_TIME {
         debug!("Run CPU for up to {:?} to reach frame time", frame_time);
         // If the CPU isn't running we won't make progress, so stop.
-        let emulated_duration = match emu.run(cpu, frame_time) {
+        let emulated_duration = match emu.run(cpu, debugger.as_mut(), frame_time) {
             None => break,
             Some(d) => d,
         };
