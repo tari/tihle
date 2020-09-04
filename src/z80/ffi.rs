@@ -171,9 +171,7 @@ impl Z80 {
             super::Z80::tihle_z80_handle_trap,
         );
 
-        unsafe {
-            mem::zeroed()
-        }
+        unsafe { mem::zeroed() }
     }
 
     pub fn is_halted(&self) -> bool {
