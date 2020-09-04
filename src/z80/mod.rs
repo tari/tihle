@@ -1,6 +1,8 @@
-use crate::{Emulator, MemoryAccessKind};
+use crate::debug::Debugger;
+use crate::Emulator;
 use bitflags::bitflags;
 use std::ffi::c_void;
+use std::ops::DerefMut;
 use std::ptr;
 
 mod ffi;
@@ -20,7 +22,7 @@ bitflags! {
     }
 }
 
-type FfiContext = (*mut Z80, *mut Emulator);
+type FfiContext = (*mut Z80, *mut Emulator, *mut Debugger);
 
 impl Z80 {
     pub fn new() -> Self {
@@ -39,50 +41,57 @@ impl Z80 {
         out
     }
 
-    unsafe fn ctx_from_ptr<'a>(p: *mut c_void) -> (&'a mut Z80, &'a mut Emulator) {
-        let (core, ctx) = *(p as *mut FfiContext as *const FfiContext);
+    unsafe fn ctx_from_ptr<'a>(
+        p: *mut c_void,
+    ) -> (&'a mut Z80, &'a mut Emulator, Option<&'a mut Debugger>) {
+        let (core, ctx, dbg) = *(p as *mut FfiContext as *const FfiContext);
 
-        (&mut *core, &mut *ctx)
+        let dbg = if dbg.is_null() { None } else { Some(&mut *dbg) };
+        (&mut *core, &mut *ctx, dbg)
     }
 
     #[no_mangle]
     pub extern "C" fn tihle_z80_handle_read(ctx: *mut c_void, address: u16) -> u8 {
-        let (core, emu) = unsafe { Self::ctx_from_ptr(ctx) };
+        let (core, emu, _dbg) = unsafe { Self::ctx_from_ptr(ctx) };
 
-        emu.read_memory(core, address, MemoryAccessKind::Data)
+        emu.read_memory(core, address)
     }
 
     #[no_mangle]
     pub extern "C" fn tihle_z80_handle_instruction_read(ctx: *mut c_void, address: u16) -> u8 {
-        let (core, emu) = unsafe { Self::ctx_from_ptr(ctx) };
+        let (core, emu, dbg) = unsafe { Self::ctx_from_ptr(ctx) };
 
-        emu.read_memory(core, address, MemoryAccessKind::Instruction)
+        if dbg.map_or(false, |d| d.handle_instruction_fetch(address)) {
+            core.request_yield();
+            return 0;
+        }
+        emu.read_memory(core, address)
     }
 
     #[no_mangle]
     pub extern "C" fn tihle_z80_handle_write(ctx: ffi::Ctx, address: u16, value: u8) {
-        let (core, emu) = unsafe { Self::ctx_from_ptr(ctx) };
+        let (core, emu, _dbg) = unsafe { Self::ctx_from_ptr(ctx) };
 
         emu.write_memory(core, address, value)
     }
 
     #[no_mangle]
     pub extern "C" fn tihle_z80_handle_port_read(ctx: ffi::Ctx, address: u16) -> u8 {
-        let (core, emu) = unsafe { Self::ctx_from_ptr(ctx) };
+        let (core, emu, _dbg) = unsafe { Self::ctx_from_ptr(ctx) };
 
         emu.read_io(core, address as u8)
     }
 
     #[no_mangle]
     pub extern "C" fn tihle_z80_handle_port_write(ctx: ffi::Ctx, address: u16, value: u8) {
-        let (core, emu) = unsafe { Self::ctx_from_ptr(ctx) };
+        let (core, emu, _dbg) = unsafe { Self::ctx_from_ptr(ctx) };
 
         emu.write_io(core, address as u8, value);
     }
 
     #[no_mangle]
     pub extern "C" fn tihle_z80_handle_trap(ctx: ffi::Ctx, trap_no: u16) -> usize {
-        let (core, emu) = unsafe { Self::ctx_from_ptr(ctx) };
+        let (core, emu, _dbg) = unsafe { Self::ctx_from_ptr(ctx) };
         emu.trap(trap_no, core)
     }
 
@@ -94,7 +103,12 @@ impl Z80 {
     ///
     /// The provided `Ctx` is passed to traps for access to higher-level
     /// system state.
-    pub fn run(&mut self, cycles: usize, ctx: &mut Emulator) -> usize {
+    pub fn run<D: DerefMut<Target = Debugger>>(
+        &mut self,
+        cycles: usize,
+        ctx: &mut Emulator,
+        dbg: Option<D>,
+    ) -> usize {
         assert!(
             cycles > 0,
             "Running the CPU for zero cycles doesn't make sense"
@@ -103,7 +117,11 @@ impl Z80 {
         // passes them back to callbacks by copying the parameter it receives;
         // there is no aliasing because it's just copying refs it has down to
         // a leaf function.
-        let ffi_ctx: FfiContext = (self as *mut Self, ctx as *mut Emulator);
+        let dbg = match dbg {
+            None => ptr::null_mut(),
+            Some(mut d) => d.deref_mut() as *mut _,
+        };
+        let ffi_ctx: FfiContext = (self as *mut Self, ctx as *mut Emulator, dbg);
         self.z80.context = &ffi_ctx as *const _ as *mut c_void;
         unsafe { ffi::z80_run(&mut self.z80 as *mut _, cycles) }
     }
@@ -135,6 +153,8 @@ impl Z80 {
     }
 
     /// Request that the core yield back to the emulator at the next opportunity.
+    ///
+    /// This is usually on the memory fetch for the next instruction.
     pub fn request_yield(&mut self) {
         self.z80.yield_requested = true as u8;
     }

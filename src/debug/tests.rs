@@ -11,7 +11,7 @@ fn server_responds() {
     let (mut debugger, commands, responses) = Debugger::create_for_test();
 
     assert_eq!(debugger.commands_executed, 0);
-    commands.send(Command::Version).unwrap();
+    commands.send(Command::Sync(0.0)).unwrap();
     let loop_time = Instant::now();
     loop {
         emulator.run(&mut cpu, Some(&mut debugger), Duration::from_millis(10));
@@ -27,7 +27,7 @@ fn server_responds() {
 
     let response = responses.recv().expect("Unable to receive response");
     assert_eq!(
-        Response::Version(crate::built_info::PKG_VERSION.to_string()),
+        Response::SyncResponse(0.0, crate::built_info::PKG_VERSION.to_string()),
         response
     );
 }

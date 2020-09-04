@@ -1614,8 +1614,12 @@ CPU_Z80_API zusize z80_run(Z80 *object, zusize cycles)
 		/*-----------------------------------------------.
 		| Execute instruction and update consumed cycles |
 		'-----------------------------------------------*/
-		CYCLES += instruction_table[BYTE0 = READ_INSTR_8(PC)](object);
+		BYTE0 = READ_INSTR_8(PC);
+		if (object->yield_requested) {
+      break;
 		}
+		CYCLES += instruction_table[BYTE0](object);
+  }
 
 	/*---------------.
 	| Restore R7 bit |

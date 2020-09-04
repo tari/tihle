@@ -12,6 +12,7 @@ use std::path::Path;
 use std::time::Duration;
 use tihle::debug::Debugger;
 use tihle::{Display, Emulator, Z80};
+use sdl2::keyboard::Keycode;
 
 const DISPLAY_SCALE: usize = 4;
 
@@ -407,6 +408,14 @@ fn iterate_main(
                 if let Ok(k) = k.try_into() {
                     debug!("Key down: {:?}", k);
                     emu.keyboard.key_down(k);
+                } else if k == Keycode::Pause && debugger.is_some() {
+                    info!("Pausing emulation due to user pressing Pause");
+                    let d = debugger.as_mut().unwrap();
+                    if d.is_paused() {
+                        d.unpause();
+                    } else {
+                        d.pause();
+                    }
                 } else {
                     debug!("Ignoring unhandled key {:?}", k);
                 }
@@ -457,5 +466,15 @@ fn iterate_main(
 
     debug!("CPU run complete; swap display");
     video.update(&emu.display);
+    let status = if emu.is_running() {
+        if debugger.as_ref().map_or(false, |d| d.is_paused()) {
+            "paused"
+        } else {
+            "running"
+        }
+    } else {
+        "terminated"
+    };
+    video.show_status(status);
     false
 }

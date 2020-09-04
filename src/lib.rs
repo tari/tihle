@@ -38,6 +38,7 @@ use std::time::Duration;
 
 mod bcalls;
 mod checksum;
+mod collections;
 pub mod debug;
 pub mod display;
 mod interrupt;
@@ -84,15 +85,6 @@ static DEFFAULT_FLASH_IMAGE: &[(u8, &[u8])] = &[
     (4, include_bytes!("mirageos.bin")),
 ];
 
-/// Kinds of memory access
-#[derive(Debug, PartialEq, Eq)]
-enum MemoryAccessKind {
-    /// The data being accessed is treated as an instruction
-    Instruction,
-    /// The data being accessed is treated as plain data
-    Data,
-}
-
 impl std::default::Default for Builder {
     fn default() -> Self {
         let mut flash_pages = arr![vec![]; 0x20];
@@ -137,6 +129,9 @@ impl Emulator {
         self.terminate = Cell::new(true);
     }
 
+    /// Return whether the emulator is running a program.
+    ///
+    /// False means there is no program loaded, either because one was never loaded or it exited.
     pub fn is_running(&self) -> bool {
         !self.terminate.get()
     }
@@ -158,11 +153,11 @@ impl Emulator {
     pub fn run(
         &mut self,
         cpu: &mut Z80,
-        debugger: Option<&mut Debugger>,
+        mut debugger: Option<&mut Debugger>,
         max_step: Duration,
     ) -> Option<Duration> {
         // Always process debugger actions.
-        if let Some(dbg) = debugger {
+        if let Some(ref mut dbg) = debugger {
             let paused = dbg.run(self, cpu);
             if paused {
                 debug!("Debugger is paused, not running CPU");
@@ -201,7 +196,7 @@ impl Emulator {
                 step_duration,
                 self.duration_to_cycles(step_duration)
             );
-            let cycles_run = cpu.run(self.duration_to_cycles(step_duration), self);
+            let cycles_run = cpu.run(self.duration_to_cycles(step_duration), self, debugger);
             self.cycles_to_duration(cycles_run)
         };
 
@@ -310,9 +305,9 @@ impl Emulator {
     }
 
     #[inline]
-    fn read_memory(&mut self, _core: &mut Z80, addr: u16, access_kind: MemoryAccessKind) -> u8 {
+    fn read_memory(&mut self, _core: &mut Z80, addr: u16) -> u8 {
         let byte = self.mem[addr];
-        trace!("Memory read {:?} {:04X} -> {:02X}", access_kind, addr, byte);
+        trace!("Memory read {:04X} -> {:02X}", addr, byte);
         byte
     }
 
