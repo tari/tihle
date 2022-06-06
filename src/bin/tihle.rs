@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate log;
 
+use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::rect::Rect;
 use sdl2::render::TextureCreator;
@@ -247,10 +248,13 @@ mod emscripten {
             let key = Key::from_u8(scancode);
             let keycode: sdl2::keyboard::Keycode = match key.and_then(|k| k.try_into().ok()) {
                 None => {
-                    warn!("Scan code {:#04x} didn't translate to a SDL key: => {:?}", scancode, key);
+                    warn!(
+                        "Scan code {:#04x} didn't translate to a SDL key: => {:?}",
+                        scancode, key
+                    );
                     return;
-                },
-                Some(k) => k
+                }
+                Some(k) => k,
             };
 
             let events = unsafe { &*EVENT_SUBSYSTEM.as_ptr() };

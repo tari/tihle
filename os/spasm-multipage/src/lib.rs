@@ -131,7 +131,10 @@ pub fn analyze(sources: &[(PathBuf, FileInfo)]) -> DependencyGraph {
 /// exports a symbol to all that import it.
 pub type DependencyGraph = Graph<(PathBuf, FileInfo), String>;
 
-pub fn build_all<P: AsRef<Path>>(depgraph: &DependencyGraph, include_paths: &[P]) -> Result<(), Error> {
+pub fn build_all<P: AsRef<Path>>(
+    depgraph: &DependencyGraph,
+    include_paths: &[P],
+) -> Result<(), Error> {
     assert!(depgraph.is_directed());
     let mut global_symbols: HashMap<String, (u8, u16)> = HashMap::new();
 
@@ -242,10 +245,10 @@ fn build<P: AsRef<Path>>(
     spasm.arg(&output_filename);
 
     match spasm.status() {
-        Ok(s) if s.success() => {},
+        Ok(s) if s.success() => {}
         Ok(s) => {
             return Err(Error::AssemblerError(s));
-        },
+        }
         Err(e) => {
             return Err(Error::AssemblerNotRun(e));
         }
@@ -262,7 +265,6 @@ fn build<P: AsRef<Path>>(
         dst.set_extension("lst");
         std::fs::copy(src, dst).expect("Failed to copy listing file from tempdir");
     }
-
 
     // Read symbol table and extract exports
     let mut export_values = HashMap::new();
@@ -306,11 +308,14 @@ fn build<P: AsRef<Path>>(
 }
 
 pub fn autobuild<P: AsRef<Path>>(files: &[P], include_dirs: &[P]) -> Result<(), Error> {
-    let parsed_files = files.iter().map(|path| {
-        let f = std::fs::File::open(path).expect("Unable to open source file for parsing");
-        let info = FileInfo::parse(BufReader::new(f));
-        (path.as_ref().to_owned(), info)
-    }).collect::<Vec<_>>();
+    let parsed_files = files
+        .iter()
+        .map(|path| {
+            let f = std::fs::File::open(path).expect("Unable to open source file for parsing");
+            let info = FileInfo::parse(BufReader::new(f));
+            (path.as_ref().to_owned(), info)
+        })
+        .collect::<Vec<_>>();
     let graph = analyze(&parsed_files);
 
     build_all(&graph, &include_dirs)

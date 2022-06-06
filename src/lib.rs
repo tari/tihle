@@ -116,7 +116,7 @@ enum MemoryAccessKind {
     /// The data being accessed is treated as an instruction
     Instruction,
     /// The data being accessed is treated as plain data
-    Data
+    Data,
 }
 
 impl Emulator {

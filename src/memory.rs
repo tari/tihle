@@ -3,6 +3,11 @@ use std::ops::Range;
 /// Number of flash pages that exist. Must be a power of two.
 const FLASH_PAGES: u8 = 0x20;
 
+/// Emulator memory.
+///
+/// This struct controls the memory map and access to various memories. It
+/// supports indexing with u16 to perform memory accesses, and range indexing
+/// as long as addresses do not span multiple memory banks.
 pub struct Memory {
     flash: Box<[[u8; 0x4000]]>,
     ram: [u8; 0x8000],
@@ -45,6 +50,10 @@ impl Memory {
         self[addr + 1] = (value >> 8) as u8;
     }
 
+    /// Read a byte from memory bank A, in the given page.
+    ///
+    /// The given address must be in bank A (0x4000-0x8000). The read byte
+    /// will come from the given memory page as if it were mapped into bank A.
     pub fn read_paged(&self, page: u8, addr: u16) -> u8 {
         assert!(
             BANKA_ADDRS.contains(&addr),
@@ -53,6 +62,7 @@ impl Memory {
         self.flash[page as usize][(addr - BANKA_ADDRS.start) as usize]
     }
 
+    /// Read a 16-bit value like [read_paged].
     pub fn read_u16_paged(&self, page: u8, addr: u16) -> u16 {
         (self.read_paged(page, addr) as u16) | ((self.read_paged(page, addr + 1) as u16) << 8)
     }
@@ -73,16 +83,19 @@ impl Memory {
         }
     }
 
+    /// Get the current page mapped into bank A.
     pub fn get_bank_a_page(&self) -> u8 {
         self.bank_a_page
     }
 
+    /// Set the page mapped into bank A.
     pub fn set_bank_a_page(&mut self, value: u8) {
         assert!(FLASH_PAGES.is_power_of_two());
         self.bank_a_page = value & (FLASH_PAGES - 1)
     }
 }
 
+/// Access a single byte of memory.
 impl std::ops::Index<u16> for Memory {
     type Output = u8;
 
@@ -100,6 +113,7 @@ impl std::ops::Index<u16> for Memory {
     }
 }
 
+/// Mutably access a single byte of memory.
 impl std::ops::IndexMut<u16> for Memory {
     #[inline]
     fn index_mut(&mut self, index: u16) -> &mut u8 {
@@ -115,6 +129,10 @@ impl std::ops::IndexMut<u16> for Memory {
     }
 }
 
+/// Access a range of memory.
+///
+/// Panics if the chosen range spans memory banks, because multiple banks
+/// cannot reliably be included in a single slice.
 impl std::ops::Index<Range<u16>> for Memory {
     type Output = [u8];
 
@@ -137,6 +155,10 @@ impl std::ops::Index<Range<u16>> for Memory {
     }
 }
 
+/// Mutably access a range of memory.
+///
+/// Panics if the chosen range spans memory banks, because multiple banks
+/// cannot reliably be included in a single slice.
 impl std::ops::IndexMut<Range<u16>> for Memory {
     fn index_mut(&mut self, index: Range<u16>) -> &mut [u8] {
         if PAGE0_ADDRS.contains(&index.start) && PAGE0_ADDRS.contains(&index.end) {
