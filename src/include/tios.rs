@@ -21,10 +21,18 @@ pub const progPtr: u16 = 0x9830;
 pub const flags: u16 = 0x98f0;
 pub const kbdFlags: u8 = 0;
 pub const kbdSCR: u8 = 3;
+
 pub const appFlags: u8 = 0xd;
 pub const appAutoScroll: u8 = 2;
 pub const indicFlags: u8 = 0x12;
 pub const indicOnly: u8 = 2;
+
+pub const sGrFlags: u8 = 0x14;
+pub const grfSplit: u8 = 0;
+pub const vertSplit: u8 = 1;
+pub const grfSChanged: u8 = 2;
+pub const grfSplitOverride: u8 = 3;
+pub const textWrite: u8 = 7;
 
 /// Primary graph buffer
 pub const plotSScreen: u16 = 0x9340;

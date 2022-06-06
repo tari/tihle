@@ -3,7 +3,7 @@
 use super::test_flag;
 use crate::display::ScrollDirection;
 use crate::include::tios;
-use crate::{Emulator, Flags, Z80};
+use crate::{Display, Emulator, Flags, Z80};
 
 pub fn HomeUp(emu: &mut Emulator) -> usize {
     emu.mem[tios::curCol] = 0;
@@ -99,19 +99,44 @@ pub fn DispHL(emu: &mut Emulator, core: &mut Z80) -> usize {
 }
 
 /// Display a small font character, returning the character width in pixels.
-fn put_char_small(emu: &mut Emulator, c: u8, col: u8, row: u8) -> u8 {
-    let bitmap_index = 6 * c as usize;
-    let width = SMALL_FONT_WIDTHS[c as usize];
+fn put_char_small(emu: &mut Emulator, core: &mut Z80, c: u8, col: u8, row: u8) -> u8 {
+    const CHAR_HEIGHT: usize = 6;
 
-    emu.display
-        .blit_8bit_over(col, row, &SMALL_FONT[bitmap_index..bitmap_index + 6], width);
+    let width = SMALL_FONT_WIDTHS[c as usize];
+    let bitmap_index = CHAR_HEIGHT * c as usize;
+    let char_data = &SMALL_FONT[bitmap_index..bitmap_index + CHAR_HEIGHT];
+
+    // Bit textWrite, IY+sGrFlags: set to display small font to plotsScreen,
+    // otherwise directly to LCD.
+    if test_flag(emu, core, tios::sGrFlags, tios::textWrite) {
+        let buf_rows = emu.mem[tios::plotSScreen..tios::plotSScreen + 768]
+            .chunks_exact_mut(Display::COLS / 8)
+            .skip(row as usize)
+            .take(CHAR_HEIGHT);
+        for (buf_row, char_row) in buf_rows.zip(char_data) {
+            let offset = col as usize / 8;
+            let shift = col % 8;
+
+            let left = *char_row >> shift;
+            // Rotate and mask to the `shift` MSbs
+            let right = (*char_row).rotate_right(shift as u32) & !((1 << shift) - 1);
+            if (offset as usize) < buf_row.len() {
+                buf_row[offset] ^= left;
+            }
+            if (offset as usize + 1) < buf_row.len() {
+                buf_row[offset + 1] ^= right;
+            }
+        }
+    } else {
+        emu.display.blit_8bit_over(col, row, char_data, width);
+    }
     width
 }
 
 pub fn VPutMap(emu: &mut Emulator, core: &mut Z80) -> usize {
-    // TODO handle textInverse, textEraseBelow, textWrite and fracDrawLFont flags
+    // TODO handle textInverse, textEraseBelow and fracDrawLFont flags
     let mut x = emu.mem[tios::penCol];
-    let width = put_char_small(emu, core.regs().get_a(), x, emu.mem[tios::penRow]);
+    let width = put_char_small(emu, core, core.regs().get_a(), x, emu.mem[tios::penRow]);
 
     x = x.wrapping_add(width);
     emu.mem[tios::penCol] = x;
