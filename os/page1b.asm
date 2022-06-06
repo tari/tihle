@@ -16,6 +16,7 @@ VECTOR(_GrBufCpy, GrBufCpy_PAGE, GrBufCpy)      ; MULTIPAGE:IMPORT:GrBufCpy
 VECTOR(_MemSet, MemSet_PAGE, MemSet)            ; MULTIPAGE:IMPORT:MemSet
 VECTOR(_GetCSC, GetCSC_PAGE, GetCSC)            ; MULTIPAGE:IMPORT:GetCSC
 VECTOR(_DivHLBy10, DivHLBy10_PAGE, DivHLBy10)   ; MULTIPAGE:IMPORT:DivHLBy10
+VECTOR(_GrBufClr, GrBufClr_PAGE, GrBufClr)      ; MULTIPAGE:IMPORT:GrBufClr
 
 ; Ensure vector table isn't truncated
 .seek $4000

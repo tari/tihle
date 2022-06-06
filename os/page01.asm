@@ -62,6 +62,14 @@ GetCSC:     ; MULTIPAGE:EXPORT:GetCSC
     ei
     ret
 
+GrBufClr:   ; MULTIPAGE:EXPORT:GrBufClr
+    ld hl, plotSScreen
+    ld (hl), 0
+    ld de, plotSScreen + 1
+    ld bc, 768 - 1
+    ldir
+    ret
+
 PutMap: trap _PutMap \ ret          ; MULTIPAGE:EXPORT:PutMap
 PutC: trap _PutC \ ret              ; MULTIPAGE:EXPORT:PutC
 DispHL: trap _DispHL \ ret          ; MULTIPAGE:EXPORT:DispHL
