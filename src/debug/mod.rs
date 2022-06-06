@@ -31,8 +31,13 @@ pub enum Command {
     /// Set the value of all registers
     SetRegisters(Registers),
 
-    /// Add a breakpoint
+    /// Add a breakpoint at the given address
     AddBreakpoint(u16),
+    /// Remove a breakpoint at the given address
+    RemoveBreakpoint(u16),
+
+    /// Read bytes from memory, at the given address. Return [Response::Memory].
+    ReadMem { addr: u16, size: u16 },
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -51,6 +56,8 @@ pub enum Response {
     WaitResult(PauseReason),
     /// The values of the CPU registers as requested.
     RegisterValues(Registers),
+    /// The contents of a memory block as requested.
+    Memory(Vec<u8>),
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -76,8 +83,36 @@ pub struct Debugger {
     /// If true, the debugger is executing a wait instruction and will only process
     /// Interrupt requests.
     waiting: bool,
+    /// If armed, breakpoints are active.
+    ///
+    /// This flag gets cleared on pausing for any reason, and set on any
+    /// instruction fetch (after checking breakpoints while honoring
+    /// it). This ensures that breakpoints don't trigger on the same address
+    /// when attempting to continue from a breakpoint, because the instruction
+    /// fetch see that the debugger is not armed and skip pausing on the first
+    /// instruction, but will subsequently be armed.
+    armed: bool,
 
     breakpoints: AddressSet,
+    // TODO ring buffer for reverse debugging
+    //
+    // Conceptually, this is a collection of snapshots with diffs imposed
+    // externally. To record, periodically take a snapshot containing
+    //  * CPU state
+    //  * Memory contents and mapping
+    //  * Timers
+    //  * Display contents and modes
+    //
+    // While recording, external state changes get recorded as diffs. There
+    // are few things that matter, because most everything is deterministic:
+    // just keyboard and link port are external.
+    //
+    // Replaying is slightly harder to integrate, because external states
+    // must be pulled from buffers at the correct times. Probably make the
+    // core aware of when the next diff is, and run the core until then.
+    // Once paused again, apply the diff and resume. "When" will have to be
+    // a cycle counter because the machine's time is derived entirely from
+    // cycles.
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -132,6 +167,7 @@ impl Debugger {
             commands_executed: 0,
             cpu_paused: false,
             waiting: false,
+            armed: true,
             breakpoints: Default::default(),
         }
     }
@@ -150,6 +186,7 @@ impl Debugger {
                 commands_executed: 0,
                 cpu_paused: false,
                 waiting: false,
+                armed: true,
                 breakpoints: Default::default(),
             },
             cmd_tx,
@@ -236,7 +273,22 @@ impl Debugger {
                     self.breakpoints.insert(addr);
                     Response::Ok
                 }
-                _ => Response::NotImplemented,
+                Command::RemoveBreakpoint(addr) => {
+                    if self.breakpoints.remove(&addr) {
+                        Response::Ok
+                    } else {
+                        Response::Invalid("No breakpoint exists at provided address")
+                    }
+                }
+                Command::ReadMem { addr, size } => {
+                    let mut data = Vec::<u8>::with_capacity(size as usize);
+                    for i in 0..size {
+                        data.push(emu.mem[addr.wrapping_add(i)]);
+                    }
+                    Response::Memory(data)
+                }
+
+                Command::Interrupt => panic!("Command processor should not receive interrupts"),
             };
             self.send_response(response);
         }
@@ -245,6 +297,9 @@ impl Debugger {
             "Debugger executed {} action(s) total",
             self.commands_executed
         );
+        // If we've paused for any reason, then breakpoints are not armed until
+        // the next instruction fetch.
+        self.armed = !self.cpu_paused;
         self.cpu_paused
     }
 
@@ -300,7 +355,8 @@ impl Debugger {
     ///
     /// Also handles any debugger activity in response to hitting a breakpoint.
     pub fn handle_instruction_fetch(&mut self, addr: u16) -> bool {
-        let hit = self.breakpoints.contains(&addr);
+        let hit = self.armed && self.breakpoints.contains(&addr);
+        self.armed = true;
         if hit {
             self.finish_wait(PauseReason::Breakpoint);
         }

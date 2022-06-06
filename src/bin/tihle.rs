@@ -158,6 +158,12 @@ fn main() {
                 .help("Listen for remote debug connections")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("paused")
+                .short("p")
+                .requires("debug")
+                .help("Pause execution on startup (if debugger is enabled)"),
+        )
         .arg(Arg::with_name("program").help("Program file to load on startup"))
         .get_matches();
 
@@ -171,6 +177,10 @@ fn main() {
     let mut emulator = tihle::Emulator::new();
     let mut cpu = tihle::Z80::new();
     let mut debugger: Option<Debugger> = args.value_of("debug").map(Debugger::create);
+    if args.is_present("paused") && debugger.is_some() {
+        debugger.as_mut().unwrap().pause();
+        info!("Debugger paused on load as requested")
+    }
 
     if let Some(path) = args.value_of_os("program") {
         load_program(&mut emulator, &mut cpu, &path);

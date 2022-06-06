@@ -1,0 +1,30 @@
+WHITESPACE = _{ " " | "\t" }
+
+top = _{ SOI ~ expression ~ eoi }
+    eoi = _{ !ANY }
+
+expression = _{ term ~ (infix_op ~ term)* }
+    infix_op = _{ product | quotient | remainder | sum | difference }
+        sum = { "+" }
+        difference = { "-" }
+        product = { "*" }
+        quotient = { "/" }
+        remainder = { "%" }
+    term = _{ literal | register | memory }
+
+literal = @{ hex | binary | decimal }
+    hex = _{ ((^"0x" | "$") ~ ASCII_HEX_DIGIT+) | (ASCII_HEX_DIGIT+ ~ ^"h") }
+    binary = _{ (^"0b" | "%") ~ ASCII_BIN_DIGIT+ }
+    decimal = _{ ASCII_DIGIT+ }
+
+register = {
+    ^"AF'" | ^"BC'" | ^"DE'" | ^"HL'"
+    | ^"AF" | ^"BC" | ^"DE" | ^"HL" | ^"IX" | ^"IY"
+    | ^"A" | ^"F" | ^"B" | ^"C" | ^"D" | ^"E" | ^"H" | ^"L"
+    | ^"PC" | ^"SP"
+    | ^"I" | ^"R"
+}
+
+memory = _{ mem16 | mem8 }
+    mem16 = { "w" ~ "(" ~ expression ~ ")" }
+    mem8 = { "(" ~ expression ~ ")" }
