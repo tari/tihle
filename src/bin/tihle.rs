@@ -12,7 +12,6 @@ use std::path::Path;
 use std::time::Duration;
 use tihle::debug::Debugger;
 use tihle::{Display, Emulator, Z80};
-use sdl2::keyboard::Keycode;
 
 const DISPLAY_SCALE: usize = 4;
 

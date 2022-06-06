@@ -213,7 +213,9 @@ impl Debugger {
 
             info!("Core got command: {:?}", command);
             let response = match command {
-                Command::Sync(token) => Response::SyncResponse(token, crate::built_info::PKG_VERSION.to_string()),
+                Command::Sync(token) => {
+                    Response::SyncResponse(token, crate::built_info::PKG_VERSION.to_string())
+                }
                 Command::GetRegisters => self.read_registers(cpu),
                 Command::SetRegisters(regs) => self.write_registers(cpu, regs),
                 Command::Run => {
