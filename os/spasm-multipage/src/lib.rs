@@ -21,14 +21,14 @@ pub struct FileInfo {
     /// The page this file is declared as.
     ///
     /// Example declaration:
-    /// ```
+    /// ```text
     /// ; MULTIPAGE:PAGE:1B
     /// ```
     pub page: u8,
     /// The symbols exported by this file.
     ///
     /// Example declaration:
-    /// ```
+    /// ```text
     /// ; MULTIPAGE:EXPORT:FooBar
     /// ```
     ///
@@ -42,7 +42,7 @@ pub struct FileInfo {
     /// The symbols imported by this file.
     ///
     /// Example declaration:
-    /// ```
+    /// ```text
     /// ; MULTIPAGE:IMPORT:FooBar
     /// ```
     ///

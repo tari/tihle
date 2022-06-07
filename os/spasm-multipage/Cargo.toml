@@ -15,11 +15,11 @@ cli = ["clap"]
 
 [dependencies]
 log = "0.4"
-petgraph = "0.5"
+petgraph = "0.6"
 tempdir = "0.3"
 
 [dependencies.clap]
-version = "2"
+version = "3"
 optional = true
 default-features = false
 
